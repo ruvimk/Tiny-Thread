@@ -53,9 +53,9 @@
 	#endif
 	#define TT_RESET_CLOCK()
 	#define TT_RET() asm ret
-	#define TT_IRET() TT_RET () 
-	#define TT_CLI() ; 
-	#define TT_STI() ; 
+	#define TT_IRET() TT_RET ()
+	#define TT_CLI() ;
+	#define TT_STI() ;
 #else
 #ifdef __AVR__
 	#include <avr/io.h>
@@ -68,9 +68,9 @@
 	#define TT_RESET_CLOCK() tt_tick_count += TCNT0; TCNT0 = 0
 	#define TT_SLEEP() asm volatile ("sleep" ::: "memory")
 	#define TT_RET() asm volatile ("ret")
-	#define TT_IRET() asm volatile ("reti") 
-	#define TT_CLI() asm volatile ("cli" ::: "memory") 
-	#define TT_STI() asm volatile ("sei" ::: "memory") 
+	#define TT_IRET() asm volatile ("reti")
+	#define TT_CLI() asm volatile ("cli" ::: "memory")
+	#define TT_STI() asm volatile ("sei" ::: "memory")
 	
 	#define TT_STACK_PROGRAM_OVERHEAD (3 * sizeof (void *))
 	#define TT_REGISTER_COUNT 32
@@ -85,7 +85,7 @@
 	#define TT_GET_SP() __asm__ __volatile__ ("in r22, %[l]\nin r23, %[h]\n" :: [l] "I" (_SFR_IO_ADDR(SPL)), [h] "I" (_SFR_IO_ADDR(SPH)) : "r22", "r23", "memory")
 	#define TT_SET_SP() __asm__ __volatile__ ("out %[h], r23\nout %[l], r22\n" :: [l] "I" (_SFR_IO_ADDR(SPL)), [h] "I" (_SFR_IO_ADDR(SPH)) : "r22", "r23", "memory")
 	
-	#define __TT_CALL_FIND_NEXT_THREAD() __tt_find_next_thread () 
+	#define __TT_CALL_FIND_NEXT_THREAD() __tt_find_next_thread ()
 	#define __TT_SET_CURRENT_THREAD() __asm__ __volatile__ ("st %a[curr]+, r24\nst %a[curr], r25\n" :: [curr] "e" (&tt_current_thread) : "r24", "r25", "memory")
 	#define __TT_SAVE_CURRENT_THREAD_SP() __asm__ __volatile__ ("st %a[tt]+, r22\nst %a[tt], r23\n" :: [tt] "e" (tt_current_thread) : "r22", "r23", "memory")
 	#define __TT_RETRIEVE_NEXT_THREAD_SP() __asm__ __volatile__ ("ld r22, %a[tt]+\nld r23, %a[tt]\n" :: [tt] "e" (tt_current_thread) : "r22", "r23")
@@ -97,9 +97,9 @@
 	#define TT_RESET_CLOCK() tt_tick_count += TCNT0; TCNT0 = 0
 	#define TT_SLEEP() asm volatile ("sleep" ::: "memory")
 	#define TT_RET() asm volatile ("ret")
-	#define TT_IRET() reti () 
-	#define TT_CLI() cli () 
-	#define TT_STI() sei () 
+	#define TT_IRET() reti ()
+	#define TT_CLI() cli ()
+	#define TT_STI() sei ()
 #endif
 #endif
 
@@ -115,7 +115,10 @@
 #define TT_READY_ONTHREADEXIT -2
 #define TT_READY_MAXTIME -2
 
-typedef unsigned short size_t;
+#ifndef __DMC__ 
+// For some reason this works on GCC, but makes the Digital Mars C compiler break, so we only do this while NOT on DMC: 
+typedef unsigned short size_t; 
+#endif 
 
 // Structure that defines information about a thread's context:
 struct TT_THREAD_STRUCT {
@@ -126,9 +129,9 @@ struct TT_THREAD_STRUCT {
 };
 typedef struct TT_THREAD_STRUCT TT_THREAD;
 
-// For minimum stack size, we give 16 extra bytes of leeway in case 
-// the thread needs to call a function, such as tt_exit_thread (), etc. 
-#define TT_MIN_STACK_SIZE (TT_STACK_TOTAL_OVERHEAD + 16) 
+// For minimum stack size, we give 16 extra bytes of leeway in case
+// the thread needs to call a function, such as tt_exit_thread (), etc.
+#define TT_MIN_STACK_SIZE (TT_STACK_TOTAL_OVERHEAD + 16)
 
 TT_THREAD * volatile tt_first_thread;
 TT_THREAD * volatile tt_current_thread;
@@ -161,12 +164,12 @@ void tt_yield (void);
 #else
 	__attribute__ ((naked))
 	void __tt_just_hang (void) {
-		while (1) { 
-			TT_CLI (); 
-			PORTB |= BIT (0) | BIT (1); 
-			TT_STI (); 
-			TT_SLEEP (); 
-		} 
+		while (1) {
+			TT_CLI ();
+			PORTB |= BIT (0) | BIT (1);
+			TT_STI ();
+			TT_SLEEP ();
+		}
 	}
 #endif
 
@@ -185,13 +188,13 @@ void tt_init (void) {
 	tt_obj_idle_thread.next_thread = 0;
 	tt_add_thread (&tt_obj_idle_thread);
 	// On hardware systems, also do: set up clock, interrupt, and sleep mode.
-#ifdef __AVR__ 
-	// Set up clock: 
-	TCCR0 = BIT (CS01); // Normal, low prescaling (fast clock). 
-	TIMSK |= BIT (TOIE0); // Enable interrupts on TCNT0 overflow. 
-	// Enable sleeping (mode 000, Idle) and interrupts: 
-	MCUCR = (MCUCR & ~(BIT (SM0) | BIT (SM1) | BIT (SM2))) | BIT (SE); 
-#endif 
+#ifdef __AVR__
+	// Set up clock:
+	TCCR0 = BIT (CS01); // Normal, low prescaling (fast clock).
+	TIMSK |= BIT (TOIE0); // Enable interrupts on TCNT0 overflow.
+	// Enable sleeping (mode 000, Idle) and interrupts:
+	MCUCR = (MCUCR & ~(BIT (SM0) | BIT (SM1) | BIT (SM2))) | BIT (SE);
+#endif
 }
 
 #ifdef __DMC__
@@ -210,7 +213,7 @@ void * tt_prepare_stack (void ** stack_begin_address,
 	void ** p = stack_begin_address + stack_size_bytes / sizeof (void *);
 	p[-1] = tt_exit_thread;
 	p[-2] = code_start_address;
-	#ifdef WIN32 
+	#ifdef WIN32
 		uint32_t t_eflags;
 		asm pushfd asm pop dword ptr [t_eflags]
 		p[-3] = (void *) t_eflags;
@@ -221,12 +224,12 @@ void * tt_prepare_stack (void ** stack_begin_address,
 		p[-4 - TT_REGISTER_COUNT] = __tt_restore_and_return;
 		return &p[-4 - TT_REGISTER_COUNT];
 	#else
-		// Assuming sizeof (void *) is 2 for AVR. 
-		p[-3] = 0; 
-		p[-4] = (void *) (RAMPZ | ((uint16_t) SREG << 8)); 
-		size_t i; 
-		for (i = 5; i < 3 + TT_REGISTER_COUNT / sizeof (void *); i++) 
-			p[-i] = 0; 
+		// Assuming sizeof (void *) is 2 for AVR.
+		p[-3] = 0;
+		p[-4] = (void *) (RAMPZ | ((uint16_t) SREG << 8));
+		size_t i;
+		for (i = 5; i < 3 + TT_REGISTER_COUNT / sizeof (void *); i++)
+			p[-i] = 0;
 		p[-3 - TT_REGISTER_COUNT / sizeof (void *)] = code_start_address;
 		return &p[-3 - TT_REGISTER_COUNT / sizeof (void *)];
 	#endif
@@ -310,25 +313,25 @@ TT_THREAD * __tt_find_next_thread (void) {
 void __tt_task_switch (void) {
 	TT_GET_SP ();
 	__TT_SAVE_CURRENT_THREAD_SP ();
-#ifdef __AVR__ 
-	// This seems to compile into fewer instructions if we just use C: 
-	tt_current_thread = __tt_find_next_thread (); 
-#else 
+#ifdef __AVR__
+	// This seems to compile into fewer instructions if we just use C:
+	tt_current_thread = __tt_find_next_thread ();
+#else
 	__TT_CALL_FIND_NEXT_THREAD ();
-	__TT_SET_CURRENT_THREAD (); 
-#endif 
+	__TT_SET_CURRENT_THREAD ();
+#endif
 	__TT_RETRIEVE_NEXT_THREAD_SP ();
 	TT_SET_SP ();
 	TT_RET ();
 }
 
 void tt_yield (void) {
-	TT_CLI (); 
+	TT_CLI ();
 	TT_RESET_CLOCK ();
 	TT_SAVE ();
 	__tt_task_switch ();
 	TT_RESTORE ();
-	TT_STI (); 
+	TT_STI ();
 }
 
 void tt_sleep_ticks (uint32_t ticks) {
@@ -386,18 +389,19 @@ void tt_exit_thread (void) {
 	tt_suspend_me ();
 }
 
-#ifdef __AVR__ 
-ISR(TIMER0_OVF_vect, ISR_NAKED) { 
-	TT_SAVE (); 
-	PORTE |= BIT (5); 
-	tt_tick_count += BIT (8); 
-	__tt_task_switch (); 
-	PORTE &= ~BIT (5); 
-	TT_RESTORE (); 
-	TT_STI (); 
-	TT_IRET (); 
-} 
-#endif 
+#ifdef __AVR__
+ISR(TIMER0_OVF_vect, ISR_NAKED) {
+	TT_SAVE ();
+	PORTE |= BIT (5);
+	tt_tick_count += BIT (8);
+	__tt_task_switch ();
+	PORTE &= ~BIT (5);
+	TT_RESTORE ();
+	TT_STI ();
+	TT_IRET ();
+}
+#endif
+
 
 
 
