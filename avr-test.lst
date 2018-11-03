@@ -1,0 +1,1463 @@
+   1               		.file	"avr-test.c"
+   2               	__SREG__ = 0x3f
+   3               	__SP_H__ = 0x3e
+   4               	__SP_L__ = 0x3d
+   5               	__CCP__  = 0x34
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+   9               		.text
+  10               	.Ltext0:
+  72               	.global	tt_get_tick_count
+  74               	tt_get_tick_count:
+  76               	.Ltext1:
+   1:thread.h      **** 
+   2:thread.h      **** 
+   3:thread.h      **** #ifndef BIT
+   4:thread.h      **** #define BIT(n) (1<<n)
+   5:thread.h      **** #endif
+   6:thread.h      **** 
+   7:thread.h      **** // Brief descriptions of sizes:
+   8:thread.h      **** 
+   9:thread.h      **** // TT_STACK_PROGRAM_OVERHEAD: extra space on the stack for tt_exit_thread,
+  10:thread.h      **** //    for the thread entry point address, and for an extra return address
+  11:thread.h      **** // TT_STACK_STATE_SAVE_SIZE: space on the stack for state other than entry/return addresses
+  12:thread.h      **** // TT_STACK_TOTAL_OVERHEAD: total number of bytes minimum needed on the stack per thread;
+  13:thread.h      **** //    this is the minimum and does not factor in function calls that the thread does
+  14:thread.h      **** 
+  15:thread.h      **** // TT_REGISTER_COUNT: the number of registers we have to save/restore for each thread
+  16:thread.h      **** 
+  17:thread.h      **** #ifdef __DMC__
+  18:thread.h      **** 	// Macro definitions for the Digital Mars C compiler
+  19:thread.h      **** 	typedef unsigned int uint32_t;
+  20:thread.h      **** 	#ifdef WIN32
+  21:thread.h      **** 		// 32-bit Windows
+  22:thread.h      **** 		#include <windows.h>
+  23:thread.h      **** 		#define tt_get_tick_count() GetTickCount ()
+  24:thread.h      **** 		
+  25:thread.h      **** 		#define TT_STACK_PROGRAM_OVERHEAD (3 * sizeof (void *))
+  26:thread.h      **** 		#define TT_REGISTER_COUNT 8
+  27:thread.h      **** 		#define TT_STACK_STATE_SAVE_SIZE (4 * TT_REGISTER_COUNT + 4)
+  28:thread.h      **** 		#define TT_STACK_TOTAL_OVERHEAD (TT_STACK_STATE_SAVE_SIZE + TT_STACK_PROGRAM_OVERHEAD)
+  29:thread.h      **** 		
+  30:thread.h      **** 		#define TT_SAVE_ALL() asm pushfd asm pushad
+  31:thread.h      **** 		#define TT_RESTORE_ALL() asm popad asm popfd
+  32:thread.h      **** 		
+  33:thread.h      **** 		#define TT_GET_SP() asm mov eax, esp
+  34:thread.h      **** 		#define TT_SET_SP() asm mov esp, eax
+  35:thread.h      **** 		
+  36:thread.h      **** 		#define __TT_CALL_FIND_NEXT_THREAD() asm call __tt_find_next_thread
+  37:thread.h      **** 		#define __TT_SET_CURRENT_THREAD() asm mov dword ptr [tt_current_thread], eax
+  38:thread.h      **** 		#define __TT_SAVE_CURRENT_THREAD_SP() \
+  39:thread.h      **** 			asm mov ebx, dword ptr [tt_current_thread] \
+  40:thread.h      **** 			asm mov [ebx], eax
+  41:thread.h      **** 		#define __TT_RETRIEVE_NEXT_THREAD_SP() \
+  42:thread.h      **** 			asm mov ebx, eax \
+  43:thread.h      **** 			asm mov eax, [ebx]
+  44:thread.h      **** 	#else
+  45:thread.h      **** 		// 16-bit DOS or OS/2
+  46:thread.h      **** 		// TODO: Figure out how to get tick count?
+  47:thread.h      **** 		
+  48:thread.h      **** 		#define TT_SAVE_ALL() asm pushf asm pusha
+  49:thread.h      **** 		#define TT_RESTORE_ALL() asm popa asm popf
+  50:thread.h      **** 		
+  51:thread.h      **** 		#define TT_GET_SP() asm mov ax, sp
+  52:thread.h      **** 		#define TT_SET_SP() asm mov sp, ax
+  53:thread.h      **** 	#endif
+  54:thread.h      **** 	#define TT_RESET_CLOCK()
+  55:thread.h      **** 	#define TT_RET() asm ret
+  56:thread.h      **** #else
+  57:thread.h      **** #ifdef __AVR__
+  58:thread.h      **** 	#include <avr/io.h>
+  59:thread.h      **** 	#include <avr/interrupt.h>
+  60:thread.h      **** 	
+  61:thread.h      **** 	volatile uint32_t tt_tick_count;
+  62:thread.h      **** 	uint32_t tt_get_tick_count (void) {
+  77               	__
+  78               		in r29,__SP_H__
+  79               	/* prologue: function */
+  80 0000 DF93      	/* frame size = 0 */
+  82 0004 CDB7      	.LM1:
+  83 0006 DEB7      		ldi r30,lo8(82)
+  84               		ldi r31,hi8(82)
+  85               		ld r24,Z
+  63:thread.h      **** 		return tt_tick_count + TCNT0;
+  86               	r24
+  87               		ldi r19,lo8(0)
+  88 0008 E2E5      		ldi r20,lo8(0)
+  89 000a F0E0      		ldi r21,hi8(0)
+  90 000c 8081      		lds r24,tt_tick_count
+  91 000e 282F      		lds r25,(tt_tick_count)+1
+  92 0010 30E0      		lds r26,(tt_tick_count)+2
+  93 0012 40E0      		lds r27,(tt_tick_count)+3
+  94 0014 50E0      		add r24,r18
+  95 0016 8091 0000 		adc r25,r19
+  96 001a 9091 0000 		adc r26,r20
+  97 001e A091 0000 		adc r27,r21
+  99 0026 820F      	.LM2:
+ 100 0028 931F      		movw r22,r24
+ 101 002a A41F      		movw r24,r26
+ 102 002c B51F      	/* epilogue start */
+  64:thread.h      **** 	}
+ 103               	
+ 104               		ret
+ 106 0030 CD01      	.Lscope1:
+ 111               	.global	__tt_just_hang
+ 113               	__tt_just_hang:
+ 115               	.LM3:
+ 116               	.LFBB2:
+ 117               	/* prologue: naked */
+ 118               	/* frame size = 0 */
+ 119               	.L4:
+  65:thread.h      **** 	#define TT_RESET_CLOCK() tt_tick_count += TCNT0; TCNT0 = 0
+  66:thread.h      **** 	#define TT_SLEEP() asm volatile ("sleep" ::: "memory")
+  67:thread.h      **** 	#define TT_RET() asm volatile ("ret")
+  68:thread.h      **** 	
+  69:thread.h      **** 	#define TT_STACK_PROGRAM_OVERHEAD (3 * sizeof (void *))
+  70:thread.h      **** 	#define TT_REGISTER_COUNT 32
+  71:thread.h      **** 	#define TT_STACK_STATE_SAVE_SIZE (1 * TT_REGISTER_COUNT + 2)
+  72:thread.h      **** 	#define TT_STACK_TOTAL_OVERHEAD (TT_STACK_STATE_SAVE_SIZE + TT_STACK_PROGRAM_OVERHEAD)
+  73:thread.h      **** 	
+  74:thread.h      **** 	// RAMPZ = 0x3F
+  75:thread.h      **** 	// SREG = 0x3B
+  76:thread.h      **** 	#define TT_SAVE_ALL() (0); //__asm__ __volatile__ ("push r1\npush r0\nin r0, %[p]\npush r0\nin r0,
+  77:thread.h      **** 	#define TT_RESTORE_ALL() (0); //__asm__ __volatile__ ("pop r31\npop r30\npop r29\npop r28\npop r27
+  78:thread.h      **** 
+  79:thread.h      **** 	#define TT_GET_SP() __asm__ __volatile__ ("in r22, %[l]\nin r23, %[h]\n" :: [l] "I" (_SFR_IO_ADDR(
+  80:thread.h      **** 	#define TT_SET_SP() __asm__ __volatile__ ("out %[h], r23\nout %[l], r22\n" :: [l] "I" (_SFR_IO_ADD
+  81:thread.h      **** 	
+  82:thread.h      **** 	#define __TT_CALL_FIND_NEXT_THREAD() __tt_find_next_thread ()
+  83:thread.h      **** 	#define __TT_SET_CURRENT_THREAD() __asm__ __volatile__ ("sts %B[dest], r25\nsts %A[dest], r24\n" :
+  84:thread.h      **** 	#define __TT_SAVE_CURRENT_THREAD_SP() (0); //__asm__ __volatile__ ("st %A[tt], r22\nstd %B[tt], r2
+  85:thread.h      **** 	#define __TT_RETRIEVE_NEXT_THREAD_SP() (0); //__asm__ __volatile__ ("ld r22, %A[tt]\nldd r23, %B[t
+  86:thread.h      **** #else
+  87:thread.h      **** 	volatile uint32_t tt_tick_count;
+  88:thread.h      **** 	uint32_t tt_get_tick_count () {
+  89:thread.h      **** 		return tt_tick_count + TCNT0;
+  90:thread.h      **** 	}
+  91:thread.h      **** 	#define TT_RESET_CLOCK() tt_tick_count += TCNT0; TCNT0 = 0
+  92:thread.h      **** 	#define TT_SLEEP() asm volatile ("sleep" ::: "memory")
+  93:thread.h      **** 	#define TT_RET() asm volatile ("ret")
+  94:thread.h      **** #endif
+  95:thread.h      **** #endif
+  96:thread.h      **** 
+  97:thread.h      **** #define TT_SAVE() TT_SAVE_ALL ()
+  98:thread.h      **** #define TT_RESTORE() TT_RESTORE_ALL ()
+  99:thread.h      **** 
+ 100:thread.h      **** #define TT_PRIORITY_TOP 0
+ 101:thread.h      **** #define TT_PRIORITY_NORMAL 0x80
+ 102:thread.h      **** #define TT_PRIORITY_BOTTOM 0xFF
+ 103:thread.h      **** 
+ 104:thread.h      **** #define TT_READY_NOW 0
+ 105:thread.h      **** #define TT_READY_SUSPENDED -1
+ 106:thread.h      **** #define TT_READY_ONTHREADEXIT -2
+ 107:thread.h      **** #define TT_READY_MAXTIME -2
+ 108:thread.h      **** 
+ 109:thread.h      **** typedef unsigned short size_t;
+ 110:thread.h      **** 
+ 111:thread.h      **** // Structure that defines information about a thread's context:
+ 112:thread.h      **** struct TT_THREAD_STRUCT {
+ 113:thread.h      **** 	void ** t_sp; // Stack Pointer.
+ 114:thread.h      **** 	size_t priority; // 0 is the highest priority.
+ 115:thread.h      **** 	uint32_t ready_at; // Tick count at which this thread is ready.
+ 116:thread.h      **** 	struct TT_THREAD_STRUCT * next_thread; // Pointer to the next thread, or nullptr.
+ 117:thread.h      **** };
+ 118:thread.h      **** typedef struct TT_THREAD_STRUCT TT_THREAD;
+ 119:thread.h      **** 
+ 120:thread.h      **** TT_THREAD * volatile tt_first_thread;
+ 121:thread.h      **** TT_THREAD * volatile tt_current_thread;
+ 122:thread.h      **** 
+ 123:thread.h      **** TT_THREAD tt_obj_main_thread;
+ 124:thread.h      **** TT_THREAD tt_obj_idle_thread;
+ 125:thread.h      **** #ifdef WIN32
+ 126:thread.h      **** #warning "This is WIN32"
+ 127:thread.h      **** void * tt_idle_thread_stack [TT_STACK_TOTAL_OVERHEAD / sizeof (void *) + 1024];
+ 128:thread.h      **** #else
+ 129:thread.h      **** void * tt_idle_thread_stack [TT_STACK_TOTAL_OVERHEAD / sizeof (void *) + 16];
+ 130:thread.h      **** #endif
+ 131:thread.h      **** 
+ 132:thread.h      **** // Some declarations:
+ 133:thread.h      **** void tt_add_thread (TT_THREAD * thread_info);
+ 134:thread.h      **** void * tt_prepare_stack (void ** stack_begin_address,
+ 135:thread.h      **** 						size_t stack_size_bytes,
+ 136:thread.h      **** 						void * code_start_address);
+ 137:thread.h      **** void tt_exit_thread (void);
+ 138:thread.h      **** void tt_yield (void);
+ 139:thread.h      **** 
+ 140:thread.h      **** #ifdef __DMC__
+ 141:thread.h      **** 	__declspec (naked)
+ 142:thread.h      **** 	void __tt_just_hang (void) {
+ 143:thread.h      **** 		while (1) {
+ 144:thread.h      **** 			Sleep (50);
+ 145:thread.h      **** 			tt_yield ();
+ 146:thread.h      **** 		}
+ 147:thread.h      **** 		printf ("Idle F\n");
+ 148:thread.h      **** 	}
+ 149:thread.h      **** #else
+ 150:thread.h      **** 	__attribute__ ((naked))
+ 151:thread.h      **** 	void __tt_just_hang (void) {
+ 120               	,.LM4-.LFBB2
+ 121               	.LM4:
+ 122               	/* #APP */
+ 123               	 ;  152 "thread.h" 1
+ 124               		sleep
+ 125               	 ;  0 "" 2
+ 152:thread.h      **** 		while (1) TT_SLEEP ();
+ 126               	APP */
+ 127               		rjmp .L4
+ 129               	.Lscope2:
+ 131               	.global	tt_init
+ 133 003a 00C0      	tt_init:
+ 135               	.LM5:
+ 136               	.LFBB3:
+ 137               		push r29
+ 138               		push r28
+ 139               		in r28,__SP_L__
+ 153:thread.h      **** 	}
+ 154:thread.h      **** #endif
+ 155:thread.h      **** 
+ 156:thread.h      **** //**********************************************************************
+ 157:thread.h      **** // tt_init () - initialize thread scheduler
+ 158:thread.h      **** // Not sure yet what we're going to use for interrupts or whatever
+ 159:thread.h      **** //
+ 160:thread.h      **** void tt_init (void) {
+ 140               	__
+ 141               	/* prologue: function */
+ 142               	/* frame size = 0 */
+ 144 003e CF93      	.LM6:
+ 145 0040 CDB7      		ldi r24,lo8(128)
+ 146 0042 DEB7      		ldi r25,hi8(128)
+ 147               		sts (tt_obj_main_thread+2)+1,r25
+ 148               		sts tt_obj_main_thread+2,r24
+ 161:thread.h      **** 	// Set up thread:
+ 162:thread.h      **** 	tt_obj_main_thread.priority = TT_PRIORITY_NORMAL;
+ 149               	8,0,163,.LM7-.LFBB3
+ 150               	.LM7:
+ 151 0044 80E8      		ldi r24,lo8(tt_obj_main_thread)
+ 152 0046 90E0      		ldi r25,hi8(tt_obj_main_thread)
+ 153 0048 9093 0000 		sts (tt_current_thread)+1,r25
+ 154 004c 8093 0000 		sts tt_current_thread,r24
+ 163:thread.h      **** 	tt_first_thread = tt_current_thread = &tt_obj_main_thread;
+ 155               	24,tt_current_thread
+ 156               		lds r25,(tt_current_thread)+1
+ 157 0050 80E0      		sts (tt_first_thread)+1,r25
+ 158 0052 90E0      		sts tt_first_thread,r24
+ 160 0058 8093 0000 	.LM8:
+ 161 005c 8091 0000 		ldi r24,lo8(tt_idle_thread_stack)
+ 162 0060 9091 0000 		ldi r25,hi8(tt_idle_thread_stack)
+ 163 0064 9093 0000 		ldi r18,lo8(gs(__tt_just_hang))
+ 164 0068 8093 0000 		ldi r19,hi8(gs(__tt_just_hang))
+ 164:thread.h      **** 	tt_obj_idle_thread.t_sp = tt_prepare_stack (tt_idle_thread_stack,
+ 165               	o8(72)
+ 166               		ldi r23,hi8(72)
+ 167 006c 80E0      		movw r20,r18
+ 168 006e 90E0      		call tt_prepare_stack
+ 169 0070 20E0      		sts (tt_obj_idle_thread)+1,r25
+ 170 0072 30E0      		sts tt_obj_idle_thread,r24
+ 172 0076 70E0      	.LM9:
+ 173 0078 A901      		ldi r24,lo8(255)
+ 174 007a 0E94 0000 		ldi r25,hi8(255)
+ 175 007e 9093 0000 		sts (tt_obj_idle_thread+2)+1,r25
+ 176 0082 8093 0000 		sts tt_obj_idle_thread+2,r24
+ 165:thread.h      **** 			sizeof (tt_idle_thread_stack), __tt_just_hang);
+ 166:thread.h      **** 	tt_obj_idle_thread.priority = TT_PRIORITY_BOTTOM;
+ 177               	,167,.LM10-.LFBB3
+ 178               	.LM10:
+ 179 0086 8FEF      		sts tt_obj_idle_thread+4,__zero_reg__
+ 180 0088 90E0      		sts (tt_obj_idle_thread+4)+1,__zero_reg__
+ 181 008a 9093 0000 		sts (tt_obj_idle_thread+4)+2,__zero_reg__
+ 182 008e 8093 0000 		sts (tt_obj_idle_thread+4)+3,__zero_reg__
+ 167:thread.h      **** 	tt_obj_idle_thread.ready_at = 0;
+ 183               	n	68,0,168,.LM11-.LFBB3
+ 184               	.LM11:
+ 185 0092 1092 0000 		sts (tt_obj_idle_thread+8)+1,__zero_reg__
+ 186 0096 1092 0000 		sts tt_obj_idle_thread+8,__zero_reg__
+ 188 009e 1092 0000 	.LM12:
+ 168:thread.h      **** 	tt_obj_idle_thread.next_thread = 0;
+ 189               	24,lo8(tt_obj_idle_thread)
+ 190               		ldi r25,hi8(tt_obj_idle_thread)
+ 191 00a2 1092 0000 		call tt_add_thread
+ 192 00a6 1092 0000 	/* epilogue start */
+ 169:thread.h      **** 	tt_add_thread (&tt_obj_idle_thread);
+ 193               	abn	68,0,171,.LM13-.LFBB3
+ 194               	.LM13:
+ 195 00aa 80E0      		pop r28
+ 196 00ac 90E0      		pop r29
+ 197 00ae 0E94 0000 		ret
+ 170:thread.h      **** 	// On hardware systems, also do: set up clock, interrupt, and sleep mode.
+ 171:thread.h      **** }
+ 199               	e3:
+ 201 00b2 CF91      	.global	__tt_restore_and_return
+ 203 00b6 0895      	__tt_restore_and_return:
+ 205               	.LM14:
+ 206               	.LFBB4:
+ 207               	/* prologue: naked */
+ 208               	/* frame size = 0 */
+ 172:thread.h      **** 
+ 173:thread.h      **** #ifdef __DMC__
+ 174:thread.h      **** 	__declspec (naked)
+ 175:thread.h      **** #else
+ 176:thread.h      **** 	__attribute__ ((naked))
+ 177:thread.h      **** #endif
+ 178:thread.h      **** void __tt_restore_and_return (void) {
+ 210               	APP */
+ 211               	 ;  180 "thread.h" 1
+ 212               		ret
+ 213               	 ;  0 "" 2
+ 214               	/* epilogue start */
+ 179:thread.h      **** 	TT_RESTORE ();
+ 180:thread.h      **** 	TT_RET ();
+ 215               	bn	68,0,181,.LM16-.LFBB4
+ 216               	.LM16:
+ 217               	/* #NOAPP */
+ 219 00b8 0895      	.Lscope4:
+ 181:thread.h      **** }
+ 222               		"stack_size_bytes:p(7,1)",160,0,0,5
+ 224               	.global	tt_prepare_stack
+ 226               	tt_prepare_stack:
+ 228               	.LM17:
+ 229               	.LFBB5:
+ 230               		push r29
+ 231               		push r28
+ 232               		in r28,__SP_L__
+ 233               		in r29,__SP_H__
+ 182:thread.h      **** 
+ 183:thread.h      **** void * tt_prepare_stack (void ** stack_begin_address,
+ 184:thread.h      **** 						size_t stack_size_bytes,
+ 185:thread.h      **** 						void * code_start_address) {
+ 234               		in __tmp_reg__,__SREG__
+ 235               		cli
+ 236               		out __SP_H__,r29
+ 237 00ba DF93      		out __SREG__,__tmp_reg__
+ 238 00bc CF93      		out __SP_L__,r28
+ 239 00be CDB7      	/* prologue: function */
+ 240 00c0 DEB7      	/* frame size = 8 */
+ 241 00c2 2897      		std Y+4,r25
+ 242 00c4 0FB6      		std Y+3,r24
+ 243 00c6 F894      		std Y+6,r23
+ 244 00c8 DEBF      		std Y+5,r22
+ 245 00ca 0FBE      		std Y+8,r21
+ 246 00cc CDBF      		std Y+7,r20
+ 248               	.LM18:
+ 249 00ce 9C83      		ldd r24,Y+5
+ 250 00d0 8B83      		ldd r25,Y+6
+ 251 00d2 7E83      		lsr r25
+ 252 00d4 6D83      		ror r24
+ 253 00d6 5887      		movw r18,r24
+ 254 00d8 4F83      		lsl r18
+ 186:thread.h      **** 	void ** p = stack_begin_address + stack_size_bytes / sizeof (void *);
+ 255               	
+ 256               		ldd r25,Y+4
+ 257 00da 8D81      		add r24,r18
+ 258 00dc 9E81      		adc r25,r19
+ 259 00de 9695      		std Y+2,r25
+ 260 00e0 8795      		std Y+1,r24
+ 262 00e4 220F      	.LM19:
+ 263 00e6 331F      		ldd r24,Y+1
+ 264 00e8 8B81      		ldd r25,Y+2
+ 265 00ea 9C81      		movw r30,r24
+ 266 00ec 820F      		sbiw r30,2
+ 267 00ee 931F      		ldi r24,lo8(gs(tt_exit_thread))
+ 268 00f0 9A83      		ldi r25,hi8(gs(tt_exit_thread))
+ 269 00f2 8983      		std Z+1,r25
+ 187:thread.h      **** 	p[-1] = tt_exit_thread;
+ 270               	abn	68,0,188,.LM20-.LFBB5
+ 271               	.LM20:
+ 272 00f4 8981      		ldd r24,Y+1
+ 273 00f6 9A81      		ldd r25,Y+2
+ 274 00f8 FC01      		movw r30,r24
+ 275 00fa 3297      		sbiw r30,4
+ 276 00fc 80E0      		ldd r24,Y+7
+ 277 00fe 90E0      		ldd r25,Y+8
+ 278 0100 9183      		std Z+1,r25
+ 279 0102 8083      		st Z,r24
+ 188:thread.h      **** 	p[-2] = code_start_address;
+ 280               	,0,200,.LM21-.LFBB5
+ 281               	.LM21:
+ 282 0104 8981      		ldd r24,Y+1
+ 283 0106 9A81      		ldd r25,Y+2
+ 284 0108 FC01      		movw r30,r24
+ 285 010a 3497      		sbiw r30,36
+ 286 010c 8F81      		ldd r24,Y+7
+ 287 010e 9885      		ldd r25,Y+8
+ 288 0110 9183      		std Z+1,r25
+ 289 0112 8083      		st Z,r24
+ 189:thread.h      **** 	#ifdef __DMC__
+ 190:thread.h      **** 		uint32_t t_eflags;
+ 191:thread.h      **** 		asm pushfd asm pop dword ptr [t_eflags]
+ 192:thread.h      **** 		p[-3] = (void *) t_eflags;
+ 193:thread.h      **** 		size_t i;
+ 194:thread.h      **** 		for (i = 4; i < 4 + TT_REGISTER_COUNT; i++) {
+ 195:thread.h      **** 			p[-i] = 0;
+ 196:thread.h      **** 		}
+ 197:thread.h      **** 		p[-4 - TT_REGISTER_COUNT] = __tt_restore_and_return;
+ 198:thread.h      **** 		return &p[-4 - TT_REGISTER_COUNT];
+ 199:thread.h      **** 	#else
+ 200:thread.h      **** 		p[-18] = code_start_address;
+ 290               	,0,201,.LM22-.LFBB5
+ 291               	.LM22:
+ 292 0114 8981      		ldd r24,Y+1
+ 293 0116 9A81      		ldd r25,Y+2
+ 294 0118 FC01      		sbiw r24,36
+ 295 011a B497      	/* epilogue start */
+ 297 011e 9885      	.LM23:
+ 298 0120 9183      		adiw r28,8
+ 299 0122 8083      		in __tmp_reg__,__SREG__
+ 201:thread.h      **** 		return &p[-18];
+ 300               	__SP_H__,r29
+ 301               		out __SREG__,__tmp_reg__
+ 302 0124 8981      		out __SP_L__,r28
+ 303 0126 9A81      		pop r28
+ 304 0128 8497      		pop r29
+ 305               		ret
+ 202:thread.h      **** 	#endif
+ 203:thread.h      **** }
+ 306               		tt_prepare_stack, .-tt_prepare_stack
+ 310 012e F894      	.Lscope5:
+ 313 0134 CDBF      	.global	tt_add_thread
+ 315 0138 DF91      	tt_add_thread:
+ 317               	.LM24:
+ 318               	.LFBB6:
+ 319               		push r29
+ 320               		push r28
+ 321               		rcall .
+ 322               		rcall .
+ 323               		rcall .
+ 324               		in r28,__SP_L__
+ 325               		in r29,__SP_H__
+ 326               	/* prologue: function */
+ 204:thread.h      **** 
+ 205:thread.h      **** #ifdef WIN32
+ 206:thread.h      **** void tt_debug () {
+ 207:thread.h      **** 	TT_THREAD * p = tt_first_thread;
+ 208:thread.h      **** 	printf ("Debug (now = %d): \n", tt_get_tick_count ());
+ 209:thread.h      **** 	while (p) {
+ 210:thread.h      **** 		printf ("Thread; priority: %d; ready: %d;\n", p->priority, p->ready_at);
+ 211:thread.h      **** 		p = p->next_thread;
+ 212:thread.h      **** 	}
+ 213:thread.h      **** 	printf ("\n");
+ 214:thread.h      **** }
+ 215:thread.h      **** #endif
+ 216:thread.h      **** 
+ 217:thread.h      **** void tt_add_thread (TT_THREAD * thread_info) {
+ 327               		std Y+6,r25
+ 328               		std Y+5,r24
+ 330 013c DF93      	.LM25:
+ 331 013e CF93      		lds r24,tt_first_thread
+ 332 0140 00D0      		lds r25,(tt_first_thread)+1
+ 333 0142 00D0      		std Y+4,r25
+ 334 0144 00D0      		std Y+3,r24
+ 336 0148 DEB7      	.LM26:
+ 337               		ldd r30,Y+5
+ 338               		ldd r31,Y+6
+ 339 014a 9E83      		ldd r24,Z+2
+ 340 014c 8D83      		ldd r25,Z+3
+ 218:thread.h      **** 	TT_THREAD * p = tt_first_thread;
+ 341               	std Y+1,r24
+ 343 014e 8091 0000 	.LM27:
+ 344 0152 9091 0000 		ldd r30,Y+3
+ 345 0156 9C83      		ldd r31,Y+4
+ 346 0158 8B83      		ldd r18,Z+2
+ 219:thread.h      **** 	size_t need = thread_info->priority;
+ 347               	19,Z+3
+ 348               		ldd r24,Y+1
+ 349 015a ED81      		ldd r25,Y+2
+ 350 015c FE81      		cp r18,r24
+ 351 015e 8281      		cpc r19,r25
+ 352 0160 9381      		brlo .L15
+ 354 0164 8983      	.LM28:
+ 220:thread.h      **** 	if (need <= p->priority) {
+ 355               	,Y+5
+ 356               		ldd r25,Y+6
+ 357 0166 EB81      		sts (tt_first_thread)+1,r25
+ 358 0168 FC81      		sts tt_first_thread,r24
+ 360 016c 3381      	.LM29:
+ 361 016e 8981      		ldd r30,Y+5
+ 362 0170 9A81      		ldd r31,Y+6
+ 363 0172 2817      		ldd r24,Y+3
+ 364 0174 3907      		ldd r25,Y+4
+ 365 0176 00F0      		std Z+9,r25
+ 221:thread.h      **** 		// This thread should be first; add it at the beginning.
+ 222:thread.h      **** 		tt_first_thread = thread_info;
+ 366               	4
+ 367               		rjmp .L19
+ 368 0178 8D81      	.L17:
+ 370 017c 9093 0000 	.LM30:
+ 371 0180 8093 0000 		ldd r30,Y+3
+ 223:thread.h      **** 		thread_info->next_thread = p;
+ 372               	31,Y+4
+ 373               		ldd r24,Z+8
+ 374 0184 ED81      		ldd r25,Z+9
+ 375 0186 FE81      		std Y+4,r25
+ 376 0188 8B81      		std Y+3,r24
+ 377 018a 9C81      	.L15:
+ 379 018e 8087      	.LM31:
+ 380 0190 00C0      		ldd r30,Y+3
+ 381               		ldd r31,Y+4
+ 224:thread.h      **** 		return;
+ 225:thread.h      **** 	}
+ 226:thread.h      **** 	while (p->next_thread && need > p->next_thread->priority)
+ 227:thread.h      **** 		p = p->next_thread;
+ 382               	+8
+ 383               		ldd r25,Z+9
+ 384 0192 EB81      		sbiw r24,0
+ 385 0194 FC81      		breq .L16
+ 386 0196 8085      		ldd r30,Y+3
+ 387 0198 9185      		ldd r31,Y+4
+ 388 019a 9C83      		ldd __tmp_reg__,Z+8
+ 389 019c 8B83      		ldd r31,Z+9
+ 390               		mov r30,__tmp_reg__
+ 391               		ldd r18,Z+2
+ 392               		ldd r19,Z+3
+ 393 019e EB81      		ldd r24,Y+1
+ 394 01a0 FC81      		ldd r25,Y+2
+ 395 01a2 8085      		cp r18,r24
+ 396 01a4 9185      		cpc r19,r25
+ 397 01a6 0097      		brlo .L17
+ 398 01a8 01F0      	.L16:
+ 400 01ac FC81      	.LM32:
+ 401 01ae 0084      		ldd r30,Y+3
+ 402 01b0 F185      		ldd r31,Y+4
+ 403 01b2 E02D      		ldd r24,Z+8
+ 404 01b4 2281      		ldd r25,Z+9
+ 405 01b6 3381      		sbiw r24,0
+ 406 01b8 8981      		brne .L18
+ 408 01bc 2817      	.LM33:
+ 409 01be 3907      		ldd r30,Y+5
+ 410 01c0 00F0      		ldd r31,Y+6
+ 411               		std Z+9,__zero_reg__
+ 228:thread.h      **** 	if (!p->next_thread) {
+ 412               	68,0,231,.LM34-.LFBB6
+ 413               	.LM34:
+ 414 01c2 EB81      		ldd r30,Y+3
+ 415 01c4 FC81      		ldd r31,Y+4
+ 416 01c6 8085      		ldd r24,Y+5
+ 417 01c8 9185      		ldd r25,Y+6
+ 418 01ca 0097      		std Z+9,r25
+ 419 01cc 01F4      		std Z+8,r24
+ 229:thread.h      **** 		// It stopped because we reached the list end.
+ 230:thread.h      **** 		thread_info->next_thread = 0;
+ 420               	19
+ 421               	.L18:
+ 423 01d0 FE81      	.LM35:
+ 424 01d2 1186      		ldd r30,Y+3
+ 425 01d4 1086      		ldd r31,Y+4
+ 231:thread.h      **** 		p->next_thread = thread_info;
+ 426               	24,Z+8
+ 427               		ldd r25,Z+9
+ 428 01d6 EB81      		ldd r30,Y+5
+ 429 01d8 FC81      		ldd r31,Y+6
+ 430 01da 8D81      		std Z+9,r25
+ 431 01dc 9E81      		std Z+8,r24
+ 433 01e0 8087      	.LM36:
+ 434 01e2 00C0      		ldd r30,Y+3
+ 435               		ldd r31,Y+4
+ 232:thread.h      **** 	} else {
+ 233:thread.h      **** 		// It stopped because the next thread is of the same or lower priority as this.
+ 234:thread.h      **** 		thread_info->next_thread = p->next_thread;
+ 436               	+5
+ 437               		ldd r25,Y+6
+ 438 01e4 EB81      		std Z+9,r25
+ 439 01e6 FC81      		std Z+8,r24
+ 440 01e8 8085      	.L19:
+ 441 01ea 9185      	/* epilogue start */
+ 443 01ee FE81      	.LM37:
+ 444 01f0 9187      		adiw r28,6
+ 445 01f2 8087      		in __tmp_reg__,__SREG__
+ 235:thread.h      **** 		p->next_thread = thread_info;
+ 446               	__SP_H__,r29
+ 447               		out __SREG__,__tmp_reg__
+ 448 01f4 EB81      		out __SP_L__,r28
+ 449 01f6 FC81      		pop r28
+ 450 01f8 8D81      		pop r29
+ 451 01fa 9E81      		ret
+ 236:thread.h      **** 	}
+ 237:thread.h      **** 	// tt_debug ();
+ 238:thread.h      **** }
+ 456               	4,0,0,.Lscope6-.LFBB6
+ 457               	.Lscope6:
+ 460 0204 F894      	.global	tt_remove_thread
+ 462 0208 0FBE      	tt_remove_thread:
+ 464 020c CF91      	.LM38:
+ 465 020e DF91      	.LFBB7:
+ 466 0210 0895      		push r29
+ 467               		push r28
+ 468               		rcall .
+ 469               		rcall .
+ 470               		in r28,__SP_L__
+ 471               		in r29,__SP_H__
+ 472               	/* prologue: function */
+ 473               	/* frame size = 4 */
+ 474               		std Y+4,r25
+ 475               		std Y+3,r24
+ 477               	.LM39:
+ 239:thread.h      **** 
+ 240:thread.h      **** void tt_remove_thread (TT_THREAD * thread_info) {
+ 478               	ad
+ 479               		lds r25,(tt_first_thread)+1
+ 480               		std Y+2,r25
+ 481 0212 DF93      		std Y+1,r24
+ 483 0216 00D0      	.LM40:
+ 484 0218 00D0      		ldd r18,Y+1
+ 485 021a CDB7      		ldd r19,Y+2
+ 486 021c DEB7      		ldd r24,Y+3
+ 487               		ldd r25,Y+4
+ 488               		cp r18,r24
+ 489 021e 9C83      		cpc r19,r25
+ 490 0220 8B83      		brne .L22
+ 241:thread.h      **** 	TT_THREAD * p = tt_first_thread;
+ 491               	244,.LM41-.LFBB7
+ 492               	.LM41:
+ 493 0222 8091 0000 		ldd r30,Y+1
+ 494 0226 9091 0000 		ldd r31,Y+2
+ 495 022a 9A83      		ldd r24,Z+8
+ 496 022c 8983      		ldd r25,Z+9
+ 242:thread.h      **** 	if (p == thread_info) {
+ 497               	tt_first_thread)+1,r25
+ 498               		sts tt_first_thread,r24
+ 500 0230 3A81      	.LM42:
+ 501 0232 8B81      		lds r24,tt_first_thread
+ 502 0234 9C81      		lds r25,(tt_first_thread)+1
+ 503 0236 2817      		std Y+2,r25
+ 504 0238 3907      		std Y+1,r24
+ 505 023a 01F4      		rjmp .L22
+ 243:thread.h      **** 		// This is the first thread; remove it.
+ 244:thread.h      **** 		tt_first_thread = p->next_thread;
+ 506               	tabn	68,0,248,.LM43-.LFBB7
+ 507               	.LM43:
+ 508 023c E981      		ldd r30,Y+1
+ 509 023e FA81      		ldd r31,Y+2
+ 510 0240 8085      		ldd r18,Z+8
+ 511 0242 9185      		ldd r19,Z+9
+ 512 0244 9093 0000 		ldd r24,Y+3
+ 513 0248 8093 0000 		ldd r25,Y+4
+ 245:thread.h      **** 		p = tt_first_thread;
+ 514               	r24
+ 515               		cpc r19,r25
+ 516 024c 8091 0000 		brne .L23
+ 518 0254 9A83      	.LM44:
+ 519 0256 8983      		ldd r30,Y+3
+ 520 0258 00C0      		ldd r31,Y+4
+ 521               		ldd r24,Z+8
+ 246:thread.h      **** 	}
+ 247:thread.h      **** 	while (p) {
+ 248:thread.h      **** 		if (p->next_thread == thread_info) {
+ 522               	,Z+9
+ 523               		ldd r30,Y+1
+ 524 025a E981      		ldd r31,Y+2
+ 525 025c FA81      		std Z+9,r25
+ 526 025e 2085      		std Z+8,r24
+ 527 0260 3185      	.L23:
+ 529 0264 9C81      	.LM45:
+ 530 0266 2817      		ldd r30,Y+1
+ 531 0268 3907      		ldd r31,Y+2
+ 532 026a 01F4      		ldd r24,Z+4
+ 249:thread.h      **** 			// Remove the next thread if its pointer is equal to the thread to remove:
+ 250:thread.h      **** 			p->next_thread = thread_info->next_thread;
+ 533               	5
+ 534               		ldd r26,Z+6
+ 535 026c EB81      		ldd r27,Z+7
+ 536 026e FC81      		cpi r24,lo8(-2)
+ 537 0270 8085      		ldi r18,hi8(-2)
+ 538 0272 9185      		cpc r25,r18
+ 539 0274 E981      		ldi r18,hlo8(-2)
+ 540 0276 FA81      		cpc r26,r18
+ 541 0278 9187      		ldi r18,hhi8(-2)
+ 542 027a 8087      		cpc r27,r18
+ 543               		brne .L24
+ 251:thread.h      **** 		}
+ 252:thread.h      **** 		if (p->ready_at == TT_READY_ONTHREADEXIT) {
+ 544               	0,253,.LM46-.LFBB7
+ 545               	.LM46:
+ 546 027c E981      		ldd r30,Y+1
+ 547 027e FA81      		ldd r31,Y+2
+ 548 0280 8481      		std Z+4,__zero_reg__
+ 549 0282 9581      		std Z+5,__zero_reg__
+ 550 0284 A681      		std Z+6,__zero_reg__
+ 551 0286 B781      		std Z+7,__zero_reg__
+ 552 0288 8E3F      	.L24:
+ 554 028c 9207      	.LM47:
+ 555 028e 2FEF      		ldd r30,Y+1
+ 556 0290 A207      		ldd r31,Y+2
+ 557 0292 2FEF      		ldd r24,Z+8
+ 558 0294 B207      		ldd r25,Z+9
+ 559 0296 01F4      		std Y+2,r25
+ 253:thread.h      **** 			p->ready_at = 0;
+ 560               	2:
+ 562 0298 E981      	.LM48:
+ 563 029a FA81      		ldd r24,Y+1
+ 564 029c 1482      		ldd r25,Y+2
+ 565 029e 1582      		sbiw r24,0
+ 566 02a0 1682      		brne .L25
+ 567 02a2 1782      	/* epilogue start */
+ 254:thread.h      **** 		}
+ 255:thread.h      **** 		p = p->next_thread;
+ 569               	op __tmp_reg__
+ 570               		pop __tmp_reg__
+ 571 02a4 E981      		pop __tmp_reg__
+ 572 02a6 FA81      		pop __tmp_reg__
+ 573 02a8 8085      		pop r28
+ 574 02aa 9185      		pop r29
+ 575 02ac 9A83      		ret
+ 580 02b0 8981      	.Lscope7:
+ 582 02b4 0097      	.global	__tt_find_next_thread
+ 584               	__tt_find_next_thread:
+ 256:thread.h      **** 	}
+ 257:thread.h      **** 	// tt_debug ();
+ 258:thread.h      **** }
+ 585               	,.LM50-.LFBB8
+ 586               	.LM50:
+ 587 02b8 0F90      	.LFBB8:
+ 588 02ba 0F90      		push r29
+ 589 02bc 0F90      		push r28
+ 590 02be 0F90      		in r28,__SP_L__
+ 591 02c0 CF91      		in r29,__SP_H__
+ 592 02c2 DF91      		sbiw r28,8
+ 593 02c4 0895      		in __tmp_reg__,__SREG__
+ 594               		cli
+ 595               		out __SP_H__,r29
+ 596               		out __SREG__,__tmp_reg__
+ 597               		out __SP_L__,r28
+ 598               	/* prologue: function */
+ 599               	/* frame size = 8 */
+ 601               	.LM51:
+ 602               		lds r24,tt_first_thread
+ 259:thread.h      **** 
+ 260:thread.h      **** TT_THREAD * __tt_find_next_thread (void) {
+ 603               	_thread)+1
+ 604               		std Y+6,r25
+ 605               		std Y+5,r24
+ 607 02c8 CF93      	.LM52:
+ 608 02ca CDB7      		call tt_get_tick_count
+ 609 02cc DEB7      		movw r26,r24
+ 610 02ce 2897      		movw r24,r22
+ 611 02d0 0FB6      		std Y+1,r24
+ 612 02d2 F894      		std Y+2,r25
+ 613 02d4 DEBF      		std Y+3,r26
+ 614 02d6 0FBE      		std Y+4,r27
+ 615 02d8 CDBF      		rjmp .L28
+ 616               	.L30:
+ 261:thread.h      **** 	// tt_debug ();
+ 262:thread.h      **** 	TT_THREAD * p = tt_first_thread;
+ 618               	,Y+5
+ 619               		ldd r31,Y+6
+ 620 02da 8091 0000 		ldd r24,Z+8
+ 621 02de 9091 0000 		ldd r25,Z+9
+ 622 02e2 9E83      		std Y+6,r25
+ 623 02e4 8D83      		std Y+5,r24
+ 263:thread.h      **** 	uint32_t now = tt_get_tick_count ();
+ 625               	.LM54:
+ 626 02e6 0E94 0000 		ldd r24,Y+5
+ 627 02ea DC01      		ldd r25,Y+6
+ 628 02ec CB01      		sbiw r24,0
+ 629 02ee 8983      		breq .L29
+ 630 02f0 9A83      		lds r18,tt_current_thread
+ 631 02f2 AB83      		lds r19,(tt_current_thread)+1
+ 632 02f4 BC83      		ldd r24,Y+5
+ 633 02f6 00C0      		ldd r25,Y+6
+ 634               		cp r24,r18
+ 264:thread.h      **** 	while (p && (p == tt_current_thread || p->ready_at > now ||
+ 265:thread.h      **** 			p->ready_at >= TT_READY_MAXTIME))
+ 266:thread.h      **** 		p = p->next_thread;
+ 635               	9
+ 636               		breq .L30
+ 637 02f8 ED81      		ldd r30,Y+5
+ 638 02fa FE81      		ldd r31,Y+6
+ 639 02fc 8085      		ldd r18,Z+4
+ 640 02fe 9185      		ldd r19,Z+5
+ 641 0300 9E83      		ldd r20,Z+6
+ 642 0302 8D83      		ldd r21,Z+7
+ 643               		ldd r24,Y+1
+ 644               		ldd r25,Y+2
+ 645               		ldd r26,Y+3
+ 646 0304 8D81      		ldd r27,Y+4
+ 647 0306 9E81      		cp r24,r18
+ 648 0308 0097      		cpc r25,r19
+ 649 030a 01F0      		cpc r26,r20
+ 650 030c 2091 0000 		cpc r27,r21
+ 651 0310 3091 0000 		brlo .L30
+ 652 0314 8D81      		ldd r30,Y+5
+ 653 0316 9E81      		ldd r31,Y+6
+ 654 0318 8217      		ldd r24,Z+4
+ 655 031a 9307      		ldd r25,Z+5
+ 656 031c 01F0      		ldd r26,Z+6
+ 657 031e ED81      		ldd r27,Z+7
+ 658 0320 FE81      		cpi r24,lo8(-2)
+ 659 0322 2481      		ldi r18,hi8(-2)
+ 660 0324 3581      		cpc r25,r18
+ 661 0326 4681      		ldi r18,hlo8(-2)
+ 662 0328 5781      		cpc r26,r18
+ 663 032a 8981      		ldi r18,hhi8(-2)
+ 664 032c 9A81      		cpc r27,r18
+ 665 032e AB81      		brsh .L30
+ 666 0330 BC81      	.L29:
+ 668 0334 9307      	.LM55:
+ 669 0336 A407      		ldd r24,Y+5
+ 670 0338 B507      		ldd r25,Y+6
+ 671 033a 00F0      		sbiw r24,0
+ 672 033c ED81      		breq .L31
+ 673 033e FE81      		ldd r30,Y+5
+ 674 0340 8481      		ldd r31,Y+6
+ 675 0342 9581      		ldd r18,Z+2
+ 676 0344 A681      		ldd r19,Z+3
+ 677 0346 B781      		lds r30,tt_current_thread
+ 678 0348 8E3F      		lds r31,(tt_current_thread)+1
+ 679 034a 2FEF      		ldd r24,Z+2
+ 680 034c 9207      		ldd r25,Z+3
+ 681 034e 2FEF      		cp r24,r18
+ 682 0350 A207      		cpc r25,r19
+ 683 0352 2FEF      		brsh .L32
+ 684 0354 B207      	.L31:
+ 685 0356 00F4      		lds r30,tt_current_thread
+ 686               		lds r31,(tt_current_thread)+1
+ 267:thread.h      **** 	if ((!p || p->priority > tt_current_thread->priority)
+ 687               		ldd r24,Y+1
+ 688               		ldd r25,Y+2
+ 689 0358 8D81      		ldd r26,Y+3
+ 690 035a 9E81      		ldd r27,Y+4
+ 691 035c 0097      		cp r24,r18
+ 692 035e 01F0      		cpc r25,r19
+ 693 0360 ED81      		cpc r26,r20
+ 694 0362 FE81      		cpc r27,r21
+ 695 0364 2281      		brlo .L32
+ 697 0368 E091 0000 	.LM56:
+ 698 036c F091 0000 		lds r24,tt_current_thread
+ 699 0370 8281      		lds r25,(tt_current_thread)+1
+ 700 0372 9381      		std Y+8,r25
+ 701 0374 8217      		std Y+7,r24
+ 702 0376 9307      		rjmp .L33
+ 703 0378 00F4      	.L32:
+ 705 037a E091 0000 	.LM57:
+ 706 037e F091 0000 		ldd r24,Y+5
+ 707 0382 2481      		ldd r25,Y+6
+ 708 0384 3581      		std Y+8,r25
+ 709 0386 4681      		std Y+7,r24
+ 710 0388 5781      	.L33:
+ 711 038a 8981      		ldd r24,Y+7
+ 712 038c 9A81      		ldd r25,Y+8
+ 713 038e AB81      	/* epilogue start */
+ 715 0392 8217      	.LM58:
+ 716 0394 9307      		adiw r28,8
+ 717 0396 A407      		in __tmp_reg__,__SREG__
+ 718 0398 B507      		cli
+ 719 039a 00F0      		out __SP_H__,r29
+ 268:thread.h      **** 		&& tt_current_thread->ready_at <= now) {
+ 269:thread.h      **** 		// No other threads are ready, so keep running this thread.
+ 270:thread.h      **** 		return tt_current_thread;
+ 720               	SP_L__,r28
+ 721               		pop r28
+ 722 039c 8091 0000 		pop r29
+ 723 03a0 9091 0000 		ret
+ 271:thread.h      **** 	}
+ 272:thread.h      **** 	return p; // Otherwise, sleep or something if p is null (no threads ready).
+ 728               	224,0,0,.Lscope8-.LFBB8
+ 729               	.Lscope8:
+ 731 03ac 9E81      	.global	__tt_task_switch
+ 733 03b0 8F83      	__tt_task_switch:
+ 735 03b2 8F81      	.LM59:
+ 736 03b4 9885      	.LFBB9:
+ 737               	/* prologue: naked */
+ 273:thread.h      **** }
+ 738               	ize = 0 */
+ 740 03b6 2896      	.LM60:
+ 741 03b8 0FB6      	/* #APP */
+ 742 03ba F894      	 ;  281 "thread.h" 1
+ 743 03bc DEBF      		in r22, 61
+ 744 03be 0FBE      	in r23, 62
+ 745 03c0 CDBF      	
+ 746 03c2 CF91      	 ;  0 "" 2
+ 748 03c6 0895      	.LM61:
+ 749               	/* #NOAPP */
+ 750               		call __tt_find_next_thread
+ 752               	.LM62:
+ 753               	/* #APP */
+ 754               	 ;  284 "thread.h" 1
+ 755               		sts r31, r25
+ 756               	sts r30, r24
+ 757               	
+ 758               	 ;  0 "" 2
+ 274:thread.h      **** 
+ 275:thread.h      **** #ifdef __DMC__
+ 276:thread.h      **** 	__declspec(naked)
+ 277:thread.h      **** #else
+ 278:thread.h      **** 	__attribute__ ((naked))
+ 279:thread.h      **** #endif
+ 280:thread.h      **** void __tt_task_switch (void) {
+ 759               	_current_thread)+1,r31
+ 760               		sts tt_current_thread,r30
+ 762               	.LM63:
+ 763               	/* #APP */
+ 281:thread.h      **** 	TT_GET_SP ();
+ 764               	86 "thread.h" 1
+ 765               		out 62, r23
+ 766               	out 61, r22
+ 767               	
+ 768 03c8 6DB7      	 ;  0 "" 2
+ 770               	.LM64:
+ 771               	 ;  287 "thread.h" 1
+ 282:thread.h      **** 	__TT_SAVE_CURRENT_THREAD_SP ();
+ 283:thread.h      **** 	__TT_CALL_FIND_NEXT_THREAD ();
+ 772               	 0 "" 2
+ 773               	/* epilogue start */
+ 775 03cc 0E94 0000 	.LM65:
+ 284:thread.h      **** 	__TT_SET_CURRENT_THREAD ();
+ 776               	NOAPP */
+ 778               	.Lscope9:
+ 780 03d0 9093 0000 	.global	tt_yield
+ 782               	tt_yield:
+ 784               	.LM66:
+ 785 03d8 F093 0000 	.LFBB10:
+ 786 03dc E093 0000 		push r29
+ 285:thread.h      **** 	__TT_RETRIEVE_NEXT_THREAD_SP ();
+ 286:thread.h      **** 	TT_SET_SP ();
+ 787               	in r28,__SP_L__
+ 788               		in r29,__SP_H__
+ 789               	/* prologue: function */
+ 790               	/* frame size = 0 */
+ 792 03e2 6DBF      	.LM67:
+ 793               		ldi r30,lo8(82)
+ 794               		ldi r31,hi8(82)
+ 287:thread.h      **** 	TT_RET ();
+ 795               	Z
+ 796               		mov r18,r24
+ 797               		ldi r19,lo8(0)
+ 798 03e4 0895      		ldi r20,lo8(0)
+ 799               		ldi r21,hi8(0)
+ 800               		lds r24,tt_tick_count
+ 288:thread.h      **** }
+ 801               	25,(tt_tick_count)+1
+ 802               		lds r26,(tt_tick_count)+2
+ 803               		lds r27,(tt_tick_count)+3
+ 804               		add r24,r18
+ 805               		adc r25,r19
+ 806               		adc r26,r20
+ 807               		adc r27,r21
+ 808               		sts tt_tick_count,r24
+ 809               		sts (tt_tick_count)+1,r25
+ 289:thread.h      **** 
+ 290:thread.h      **** void tt_yield (void) {
+ 810               	tick_count)+2,r26
+ 811               		sts (tt_tick_count)+3,r27
+ 812               		ldi r30,lo8(82)
+ 813 03e6 DF93      		ldi r31,hi8(82)
+ 814 03e8 CF93      		st Z,__zero_reg__
+ 816 03ec DEB7      	.LM68:
+ 817               		call __tt_task_switch
+ 818               	/* epilogue start */
+ 291:thread.h      **** 	TT_RESET_CLOCK ();
+ 819               	8,0,295,.LM69-.LFBB10
+ 820               	.LM69:
+ 821 03ee E2E5      		pop r28
+ 822 03f0 F0E0      		pop r29
+ 823 03f2 8081      		ret
+ 825 03f6 30E0      	.Lscope10:
+ 828 03fc 8091 0000 	.global	tt_sleep_ticks
+ 830 0404 A091 0000 	tt_sleep_ticks:
+ 832 040c 820F      	.LM70:
+ 833 040e 931F      	.LFBB11:
+ 834 0410 A41F      		push r16
+ 835 0412 B51F      		push r17
+ 836 0414 8093 0000 		push r29
+ 837 0418 9093 0000 		push r28
+ 838 041c A093 0000 		rcall .
+ 839 0420 B093 0000 		rcall .
+ 840 0424 E2E5      		in r28,__SP_L__
+ 841 0426 F0E0      		in r29,__SP_H__
+ 842 0428 1082      	/* prologue: function */
+ 292:thread.h      **** 	TT_SAVE ();
+ 293:thread.h      **** 	__tt_task_switch ();
+ 843               	d Y+1,r22
+ 844               		std Y+2,r23
+ 845 042a 0E94 0000 		std Y+3,r24
+ 846               		std Y+4,r25
+ 294:thread.h      **** 	TT_RESTORE ();
+ 295:thread.h      **** }
+ 847               	abn	68,0,298,.LM71-.LFBB11
+ 848               	.LM71:
+ 849 042e CF91      		lds r16,tt_current_thread
+ 850 0430 DF91      		lds r17,(tt_current_thread)+1
+ 851 0432 0895      		call tt_get_tick_count
+ 852               		movw r18,r22
+ 853               		movw r20,r24
+ 854               		ldd r24,Y+1
+ 855               		ldd r25,Y+2
+ 856               		ldd r26,Y+3
+ 857               		ldd r27,Y+4
+ 858               		add r24,r18
+ 296:thread.h      **** 
+ 297:thread.h      **** void tt_sleep_ticks (uint32_t ticks) {
+ 859               	
+ 860               		adc r26,r20
+ 861               		adc r27,r21
+ 862 0434 0F93      		movw r30,r16
+ 863 0436 1F93      		std Z+4,r24
+ 864 0438 DF93      		std Z+5,r25
+ 865 043a CF93      		std Z+6,r26
+ 866 043c 00D0      		std Z+7,r27
+ 868 0440 CDB7      	.LM72:
+ 869 0442 DEB7      		call tt_yield
+ 870               	/* epilogue start */
+ 872 0444 6983      	.LM73:
+ 873 0446 7A83      		pop __tmp_reg__
+ 874 0448 8B83      		pop __tmp_reg__
+ 875 044a 9C83      		pop __tmp_reg__
+ 298:thread.h      **** 	tt_current_thread->ready_at = tt_get_tick_count () + ticks;
+ 876               	
+ 877               		pop r28
+ 878 044c 0091 0000 		pop r29
+ 879 0450 1091 0000 		pop r17
+ 880 0454 0E94 0000 		pop r16
+ 881 0458 9B01      		ret
+ 883 045c 8981      	.Lscope11:
+ 885 0460 AB81      	.global	tt_get_current_thread
+ 887 0464 820F      	tt_get_current_thread:
+ 889 0468 A41F      	.LM74:
+ 890 046a B51F      	.LFBB12:
+ 891 046c F801      		push r29
+ 892 046e 8483      		push r28
+ 893 0470 9583      		in r28,__SP_L__
+ 894 0472 A683      		in r29,__SP_H__
+ 895 0474 B783      	/* prologue: function */
+ 299:thread.h      **** 	tt_yield ();
+ 896               	/
+ 898 0476 0E94 0000 	.LM75:
+ 899               		lds r24,tt_current_thread
+ 300:thread.h      **** }
+ 900               	 r25,(tt_current_thread)+1
+ 901               	/* epilogue start */
+ 903 047c 0F90      	.LM76:
+ 904 047e 0F90      		pop r28
+ 905 0480 0F90      		pop r29
+ 906 0482 CF91      		ret
+ 908 0486 1F91      	.Lscope12:
+ 911               	.global	tt_suspend_thread
+ 913               	tt_suspend_thread:
+ 915               	.LM77:
+ 916               	.LFBB13:
+ 301:thread.h      **** 
+ 302:thread.h      **** TT_THREAD * tt_get_current_thread (void) {
+ 917               	28
+ 918               		rcall .
+ 919               		in r28,__SP_L__
+ 920 048c DF93      		in r29,__SP_H__
+ 921 048e CF93      	/* prologue: function */
+ 922 0490 CDB7      	/* frame size = 2 */
+ 923 0492 DEB7      		std Y+2,r25
+ 924               		std Y+1,r24
+ 303:thread.h      **** 	return tt_current_thread;
+ 926               	dd r30,Y+1
+ 927               		ldd r31,Y+2
+ 928 0494 8091 0000 		ldi r24,lo8(-1)
+ 929 0498 9091 0000 		ldi r25,hi8(-1)
+ 930               		ldi r26,hlo8(-1)
+ 304:thread.h      **** }
+ 931               	r27,hhi8(-1)
+ 932               		std Z+4,r24
+ 933 049c CF91      		std Z+5,r25
+ 934 049e DF91      		std Z+6,r26
+ 935 04a0 0895      		std Z+7,r27
+ 936               	/* epilogue start */
+ 938               	.LM79:
+ 939               		pop __tmp_reg__
+ 940               		pop __tmp_reg__
+ 941               		pop r28
+ 942               		pop r29
+ 305:thread.h      **** 
+ 306:thread.h      **** void tt_suspend_thread (TT_THREAD * thread_info) {
+ 943               	tt_suspend_thread, .-tt_suspend_thread
+ 944               	.Lscope13:
+ 947 04a4 CF93      	.global	tt_wake_thread
+ 949 04a8 CDB7      	tt_wake_thread:
+ 951               	.LM80:
+ 952               	.LFBB14:
+ 953 04ac 9A83      		push r29
+ 954 04ae 8983      		push r28
+ 307:thread.h      **** 	thread_info->ready_at = TT_READY_SUSPENDED;
+ 955               	 r28,__SP_L__
+ 956               		in r29,__SP_H__
+ 957 04b0 E981      	/* prologue: function */
+ 958 04b2 FA81      	/* frame size = 2 */
+ 959 04b4 8FEF      		std Y+2,r25
+ 960 04b6 9FEF      		std Y+1,r24
+ 962 04ba BFEF      	.LM81:
+ 963 04bc 8483      		ldd r30,Y+1
+ 964 04be 9583      		ldd r31,Y+2
+ 965 04c0 A683      		std Z+4,__zero_reg__
+ 966 04c2 B783      		std Z+5,__zero_reg__
+ 967               		std Z+6,__zero_reg__
+ 308:thread.h      **** }
+ 968               	ro_reg__
+ 970 04c4 0F90      	.LM82:
+ 971 04c6 0F90      		ldd r30,Y+1
+ 972 04c8 CF91      		ldd r31,Y+2
+ 973 04ca DF91      		ldd r18,Z+2
+ 974 04cc 0895      		ldd r19,Z+3
+ 975               		lds r30,tt_current_thread
+ 976               		lds r31,(tt_current_thread)+1
+ 977               		ldd r24,Z+2
+ 978               		ldd r25,Z+3
+ 979               		cp r18,r24
+ 980               		cpc r19,r25
+ 981               		brsh .L47
+ 309:thread.h      **** void tt_wake_thread (TT_THREAD * thread_info) {
+ 982               	14,.LM83-.LFBB14
+ 983               	.LM83:
+ 984               		call tt_yield
+ 985 04ce DF93      	.L47:
+ 986 04d0 CF93      	/* epilogue start */
+ 988 04d4 CDB7      	.LM84:
+ 989 04d6 DEB7      		pop __tmp_reg__
+ 990               		pop __tmp_reg__
+ 991               		pop r28
+ 992 04d8 9A83      		pop r29
+ 993 04da 8983      		ret
+ 310:thread.h      **** 	thread_info->ready_at = 0; // Ready immediately.
+ 994               	ke_thread, .-tt_wake_thread
+ 995               	.Lscope14:
+ 997 04de FA81      	.global	tt_suspend_me
+ 999 04e2 1582      	tt_suspend_me:
+ 1001 04e6 1782      	.LM85:
+ 311:thread.h      **** 	// If the thread we're waking up is of higher priority than us,
+ 312:thread.h      **** 	// then we schedule it to run right away:
+ 313:thread.h      **** 	if (thread_info->priority < tt_current_thread->priority)
+ 1002               	
+ 1003               		push r29
+ 1004 04e8 E981      		push r28
+ 1005 04ea FA81      		in r28,__SP_L__
+ 1006 04ec 2281      		in r29,__SP_H__
+ 1007 04ee 3381      	/* prologue: function */
+ 1008 04f0 E091 0000 	/* frame size = 0 */
+ 1010 04f8 8281      	.LM86:
+ 1011 04fa 9381      		lds r24,tt_current_thread
+ 1012 04fc 2817      		lds r25,(tt_current_thread)+1
+ 1013 04fe 3907      		call tt_suspend_thread
+ 314:thread.h      **** 		tt_yield ();
+ 1015               	 tt_yield
+ 1016               	/* epilogue start */
+ 1018               	.LM88:
+ 1019               		pop r28
+ 315:thread.h      **** }
+ 1020               	r29
+ 1021               		ret
+ 1023 0508 0F90      	.Lscope15:
+ 1026 050e 0895      	.global	tt_suspend_until_threads_change
+ 1028               	tt_suspend_until_threads_change:
+ 1030               	.LM89:
+ 1031               	.LFBB16:
+ 1032               		push r29
+ 316:thread.h      **** 
+ 317:thread.h      **** void tt_suspend_me (void) {
+ 1033               	all .
+ 1034               		in r28,__SP_L__
+ 1035               		in r29,__SP_H__
+ 1036 0510 DF93      	/* prologue: function */
+ 1037 0512 CF93      	/* frame size = 2 */
+ 1038 0514 CDB7      		std Y+2,r25
+ 1039 0516 DEB7      		std Y+1,r24
+ 1041               	.LM90:
+ 318:thread.h      **** 	tt_suspend_thread (tt_current_thread);
+ 1042               	Y+1
+ 1043               		ldd r31,Y+2
+ 1044 0518 8091 0000 		ldi r24,lo8(-2)
+ 1045 051c 9091 0000 		ldi r25,hi8(-2)
+ 1046 0520 0E94 0000 		ldi r26,hlo8(-2)
+ 319:thread.h      **** 	tt_yield ();
+ 1047               	r27,hhi8(-2)
+ 1048               		std Z+4,r24
+ 1049 0524 0E94 0000 		std Z+5,r25
+ 1050               		std Z+6,r26
+ 320:thread.h      **** }
+ 1051               	 Z+7,r27
+ 1052               	/* epilogue start */
+ 1054 052a DF91      	.LM91:
+ 1055 052c 0895      		pop __tmp_reg__
+ 1056               		pop __tmp_reg__
+ 1057               		pop r28
+ 1058               		pop r29
+ 1059               		ret
+ 1061               	.Lscope16:
+ 321:thread.h      **** 
+ 322:thread.h      **** void tt_suspend_until_threads_change (TT_THREAD * thread_info) {
+ 1063               	uspend_me_until_threads_change
+ 1065               	tt_suspend_me_until_threads_change:
+ 1067 0530 CF93      	.LM92:
+ 1068 0532 00D0      	.LFBB17:
+ 1069 0534 CDB7      		push r29
+ 1070 0536 DEB7      		push r28
+ 1071               		in r28,__SP_L__
+ 1072               		in r29,__SP_H__
+ 1073 0538 9A83      	/* prologue: function */
+ 1074 053a 8983      	/* frame size = 0 */
+ 323:thread.h      **** 	thread_info->ready_at = TT_READY_ONTHREADEXIT;
+ 1075               	,327,.LM93-.LFBB17
+ 1076               	.LM93:
+ 1077 053c E981      		lds r24,tt_current_thread
+ 1078 053e FA81      		lds r25,(tt_current_thread)+1
+ 1079 0540 8EEF      		call tt_suspend_until_threads_change
+ 1081 0544 AFEF      	.LM94:
+ 1082 0546 BFEF      		call tt_yield
+ 1083 0548 8483      	/* epilogue start */
+ 1085 054c A683      	.LM95:
+ 1086 054e B783      		pop r28
+ 1087               		pop r29
+ 324:thread.h      **** }
+ 1088               	t_suspend_me_until_threads_change, .-tt_suspend_me_until_threads_change
+ 1089               	.Lscope17:
+ 1091 0552 0F90      	.global	tt_wait_for_all_finish
+ 1093 0556 DF91      	tt_wait_for_all_finish:
+ 1095               	.LM96:
+ 1096               	.LFBB18:
+ 1097               		push r29
+ 1098               		push r28
+ 1099               		in r28,__SP_L__
+ 1100               		in r29,__SP_H__
+ 325:thread.h      **** 
+ 326:thread.h      **** void tt_suspend_me_until_threads_change (void) {
+ 1101               	_for_all_finish
+ 1103               	tt_wait_for_all_finish:
+ 1105 055c CF93      	.LM96:
+ 1106 055e CDB7      	.LFBB18:
+ 1107 0560 DEB7      		push r29
+ 1108               		push r28
+ 1109               		in r28,__SP_L__
+ 327:thread.h      **** 	tt_suspend_until_threads_change (tt_current_thread);
+ 1110               	sh
+ 1111               	.global	tt_wait_for_all_finish
+ 1113 0566 9091 0000 	tt_wait_for_all_finish:
+ 328:thread.h      **** 	tt_yield ();
+ 1115               	t_wait_for_all_finish:F(0,15)",36,0,0,tt_wait_for_all_finish
+ 1116               	.global	tt_wait_for_all_finish
+ 1118               	tt_wait_for_all_finish:
+ 329:thread.h      **** }
+ 1119               	ads_change
+ 1120               	.Lscope17:
+ 1122 0574 DF91      	.global	tt_wait_for_all_finish
+ 1124               	tt_wait_for_all_finish:
+ 1126               	.LM96:
+ 1127               	.LFBB18:
+ 1128               		push r29
+ 1129               		push r28
+ 330:thread.h      **** 
+ 331:thread.h      **** void tt_wait_for_all_finish (void) {
+ 1130               	_wait_for_all_finish
+ 1131               	.global	tt_wait_for_all_finish
+ 1133 0578 DF93      	tt_wait_for_all_finish:
+ 1135 057c CDB7      	.LM96:
+ 1136 057e DEB7      	.LFBB18:
+ 1137 0580 2897      		push r29
+ 1138 0582 0FB6      		push r28
+ 1139 0584 F894      		in r28,__SP_L__
+ 1140 0586 DEBF      		in r29,__SP_H__
+ 1141 0588 0FBE      		sbiw r28,8
+ 1142 058a CDBF      		in __tmp_reg__,__SREG__
+ 1143               		cli
+ 1144               		out __SP_H__,r29
+ 332:thread.h      **** 	TT_THREAD * me = tt_get_current_thread ();
+ 1145               	_for_all_finish:
+ 1147 058c 0E94 0000 	.LM96:
+ 1148 0590 9887      	.LFBB18:
+ 1149 0592 8F83      		push r29
+ 333:thread.h      **** 	TT_THREAD * idler = &tt_obj_idle_thread;
+ 1150               	",36,0,0,tt_wait_for_all_finish
+ 1151               	.global	tt_wait_for_all_finish
+ 1153 0596 90E0      	tt_wait_for_all_finish:
+ 1155 059a 8D83      	.LM96:
+ 334:thread.h      **** 	size_t other_threads = 0;
+ 1156               	or_all_finish:F(0,15)",36,0,0,tt_wait_for_all_finish
+ 1157               	.global	tt_wait_for_all_finish
+ 1159 059e 1B82      	tt_wait_for_all_finish:
+ 1161               	.LM96:
+ 335:thread.h      **** 	do {
+ 336:thread.h      **** 		tt_suspend_me_until_threads_change ();
+ 1162               	or_all_finish:F(0,15)",36,0,0,tt_wait_for_all_finish
+ 1163               	.global	tt_wait_for_all_finish
+ 337:thread.h      **** 		TT_THREAD * p = tt_first_thread;
+ 1165               	-tt_suspend_me_until_threads_change
+ 1166               	.Lscope17:
+ 1168 05a8 9091 0000 	.global	tt_wait_for_all_finish
+ 1170 05ae 8983      	tt_wait_for_all_finish:
+ 338:thread.h      **** 		other_threads = 0;
+ 1171               	ads_change
+ 1172               	.Lscope17:
+ 1174 05b2 1B82      	.global	tt_wait_for_all_finish
+ 1176               	tt_wait_for_all_finish:
+ 339:thread.h      **** 		while (p) {
+ 340:thread.h      **** 			if (p != me && p != idler)
+ 1177               	ads_change
+ 1178               	.Lscope17:
+ 1180 05b8 3A81      	.global	tt_wait_for_all_finish
+ 1182 05bc 9885      	tt_wait_for_all_finish:
+ 1184 05c0 3907      	.LM96:
+ 1185 05c2 01F0      	.LFBB18:
+ 1186 05c4 2981      		push r29
+ 1187 05c6 3A81      		push r28
+ 1188 05c8 8D81      		in r28,__SP_L__
+ 1189 05ca 9E81      		in r29,__SP_H__
+ 1190 05cc 2817      		sbiw r28,8
+ 1191 05ce 3907      		in __tmp_reg__,__SREG__
+ 1192 05d0 01F0      		cli
+ 341:thread.h      **** 				other_threads++;
+ 1193               	, @function
+ 1194               	tt_wait_for_all_finish:
+ 1196 05d4 9C81      	.LM96:
+ 1197 05d6 0196      	.LFBB18:
+ 1198 05d8 9C83      		push r29
+ 1199 05da 8B83      		push r28
+ 1200               		in r28,__SP_L__
+ 342:thread.h      **** 			p = p->next_thread;
+ 1201               	sh
+ 1202               	.global	tt_wait_for_all_finish
+ 1204 05de FA81      	tt_wait_for_all_finish:
+ 1206 05e2 9185      	.LM96:
+ 1207 05e4 9A83      	.LFBB18:
+ 1208 05e6 8983      		push r29
+ 1209               		push r28
+ 1210               		in r28,__SP_L__
+ 1211               		in r29,__SP_H__
+ 1212 05e8 8981      		sbiw r28,8
+ 1213 05ea 9A81      		in __tmp_reg__,__SREG__
+ 1214 05ec 0097      		cli
+ 1215 05ee 01F4      		out __SP_H__,r29
+ 1216               		out __SREG__,__tmp_reg__
+ 343:thread.h      **** 		}
+ 344:thread.h      **** 	} while (other_threads);
+ 1217               	,0,331,.LM96-.LFBB18
+ 1218               	.LM96:
+ 1219 05f0 8B81      	.LFBB18:
+ 1220 05f2 9C81      		push r29
+ 1221 05f4 0097      		push r28
+ 1222 05f6 01F4      		in r28,__SP_L__
+ 1223               		in r29,__SP_H__
+ 345:thread.h      **** }
+ 1224               	_for_all_finish
+ 1226 05f8 2896      	tt_wait_for_all_finish:
+ 1228 05fc F894      	.LM96:
+ 1229 05fe DEBF      	.LFBB18:
+ 1230 0600 0FBE      		push r29
+ 1231 0602 CDBF      		push r28
+ 1232 0604 CF91      		in r28,__SP_L__
+ 1233 0606 DF91      		in r29,__SP_H__
+ 1234 0608 0895      		sbiw r28,8
+ 1235               		in __tmp_reg__,__SREG__
+ 1236               		cli
+ 1237               		out __SP_H__,r29
+ 1238               		out __SREG__,__tmp_reg__
+ 1239               		out __SP_L__,r28
+ 1240               	/* prologue: function */
+ 1241               	/* frame size = 8 */
+ 1243               	.LM97:
+ 1244               		call tt_get_current_thread
+ 1245               		std Y+8,r25
+ 1246               		std Y+7,r24
+ 1248               	.LM98:
+ 346:thread.h      **** 
+ 347:thread.h      **** void tt_exit_thread (void) {
+ 1249               	ue: function */
+ 1250               	/* frame size = 8 */
+ 1252 060a DF93      	.LM97:
+ 1253 060c CF93      		call tt_get_current_thread
+ 1254 060e CDB7      		std Y+8,r25
+ 1255 0610 DEB7      		std Y+7,r24
+ 1257               	.LM98:
+ 348:thread.h      **** 	tt_remove_thread (tt_current_thread);
+ 1258               	ue: function */
+ 1259               	/* frame size = 8 */
+ 1261 0616 9091 0000 	.LM97:
+ 1262 061a 0E94 0000 		call tt_get_current_thread
+ 349:thread.h      **** 	tt_suspend_me ();
+ 1263               	t __SP_H__,r29
+ 1264               		out __SREG__,__tmp_reg__
+ 1265 061e 0E94 0000 		out __SP_L__,r28
+ 1266               	/* prologue: function */
+ 350:thread.h      **** }
+ 1267               	9
+ 1268               		push r28
+ 1269 0622 CF91      		in r28,__SP_L__
+ 1270 0624 DF91      		in r29,__SP_H__
+ 1271 0626 0895      		sbiw r28,8
+ 1272               		in __tmp_reg__,__SREG__
+ 1273               		cli
+ 1274               		out __SP_H__,r29
+ 1275               		out __SREG__,__tmp_reg__
+ 1276               		out __SP_L__,r28
+ 1277               	/* prologue: function */
+ 1278               	/* frame size = 8 */
+ 1280               	.LM97:
+   1:avr-test.c    **** #include <avr/interrupt.h>
+   2:avr-test.c    **** #include "thread.h"
+   3:avr-test.c    **** 
+   4:avr-test.c    **** void main (void) {
+ 1281               	__tmp_reg__,__SREG__
+ 1282               		cli
+ 1283               		out __SP_H__,r29
+ 1284 0628 DF93      		out __SREG__,__tmp_reg__
+ 1285 062a CF93      		out __SP_L__,r28
+ 1286 062c CDB7      	/* prologue: function */
+ 1287 062e DEB7      	/* frame size = 8 */
+ 1289               	.LM97:
+   5:avr-test.c    **** 	tt_init ();
+ 1290               	__tmp_reg__,__SREG__
+ 1291               		cli
+ 1292 0630 0E94 0000 		out __SP_H__,r29
+   6:avr-test.c    **** 	sei ();
+ 1293               	_for_all_finish:
+ 1295               	.LM96:
+ 1296               	.LFBB18:
+ 1297 0634 7894      		push r29
+ 1298               		push r28
+ 1299               		in r28,__SP_L__
+ 1300               		in r29,__SP_H__
+ 1301 0636 00C0      		sbiw r28,8
+ 1302               		in __tmp_reg__,__SREG__
+ 1303               		cli
+ 1304               		out __SP_H__,r29
+ 1305               		out __SREG__,__tmp_reg__
+ 1306               		out __SP_L__,r28
+ 1307               	/* prologue: function */
+ 1308               	/* frame size = 8 */
+ 1310               	.LM97:
+ 1311               		call tt_get_current_thread
+ 1312               		std Y+8,r25
+ 1313               		std Y+7,r24
+ 1315               	.LM98:
+ 1316               		ldi r24,lo8(tt_obj_idle_thread)
+ 1317               		ldi r25,hi8(tt_obj_idle_thread)
+ 1318               		std Y+6,r25
+DEFINED SYMBOLS
+                            *ABS*:00000000 avr-test.c
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:2      *ABS*:0000003f __SREG__
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:3      *ABS*:0000003e __SP_H__
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:4      *ABS*:0000003d __SP_L__
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:5      *ABS*:00000034 __CCP__
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:6      *ABS*:00000000 __tmp_reg__
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:7      *ABS*:00000001 __zero_reg__
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:74     .text:00000000 tt_get_tick_count
+                            *COM*:00000004 tt_tick_count
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:119    .text:00000038 __tt_just_hang
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:139    .text:0000003c tt_init
+                            *COM*:0000000a tt_obj_main_thread
+                            *COM*:00000002 tt_current_thread
+                            *COM*:00000002 tt_first_thread
+                            *COM*:00000048 tt_idle_thread_stack
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:233    .text:000000ba tt_prepare_stack
+                            *COM*:0000000a tt_obj_idle_thread
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:326    .text:0000013c tt_add_thread
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:209    .text:000000b8 __tt_restore_and_return
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:1248   .text:0000060a tt_exit_thread
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:477    .text:00000212 tt_remove_thread
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:602    .text:000002c6 __tt_find_next_thread
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:758    .text:000003c8 __tt_task_switch
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:809    .text:000003e6 tt_yield
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:858    .text:00000434 tt_sleep_ticks
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:916    .text:0000048c tt_get_current_thread
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:942    .text:000004a2 tt_suspend_thread
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:981    .text:000004ce tt_wake_thread
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:1032   .text:00000510 tt_suspend_me
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:1062   .text:0000052e tt_suspend_until_threads_change
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:1100   .text:0000055a tt_suspend_me_until_threads_change
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:1129   .text:00000578 tt_wait_for_all_finish
+C:\Users\RUVIMK~1\AppData\Local\Temp/ccMMhOsu.s:1278   .text:00000628 main
+
+UNDEFINED SYMBOLS
+r31
+r30
+__do_clear_bss

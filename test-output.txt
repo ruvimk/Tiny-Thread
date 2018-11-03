@@ -1,0 +1,52 @@
+		Thread 2
+	Thread 3
+	Thread 3
+	Thread 3
+	Thread 3
+		Thread 2 again!
+		Thread 2
+		Thread 2
+		Thread 2
+		Thread 2
+		Thread 2
+		Thread 2
+		Thread 2
+		Thread 2
+	Thread 3
+	Thread 4
+	Thread 3
+	Thread 4
+	Thread 3
+	Thread 4
+	Thread 3
+	Thread 4
+	Thread 4
+	Thread 4
+	Thread 4
+	Thread 4
+Thread 5 start
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Hello World!
+Thread 1
+Hello World!
+Thread 1
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Waiting
+Thread 5 stop
+Done waiting
