@@ -1,5 +1,41 @@
 
 
+#ifdef __DMC__ 
+// For some reason Digital Mars C compiler does not have this predefined, so: 
+typedef unsigned int uint32_t; 
+#else 
+// For some reason this works on GCC, but makes the Digital Mars C compiler break, so we only do this while NOT on DMC: 
+typedef unsigned short size_t; 
+#endif 
+
+// Structure that defines information about a thread's context:
+struct TT_THREAD_STRUCT {
+	void ** t_sp; // Stack Pointer.
+	size_t priority; // 0 is the highest priority.
+	uint32_t ready_at; // Tick count at which this thread is ready.
+	struct TT_THREAD_STRUCT * next_thread; // Pointer to the next thread, or nullptr.
+};
+typedef struct TT_THREAD_STRUCT TT_THREAD;
+
+// Some declarations:
+void tt_init (void); // Initialize this scheduler - call at the beginning of main (). 
+void tt_add_thread (TT_THREAD * thread_info); // Add a thread to the queue. To start a thread, simply fill out a TT_THREAD structure, and call this function. 
+void tt_remove_thread (TT_THREAD * thread_info); // Remove a thread from the queue. 
+void * tt_prepare_stack (void ** stack_begin_address, // Convenience function to help fill out the t_sp member of a TT_THREAD structure. 
+						size_t stack_size_bytes, 
+						void * code_start_address); 
+void tt_yield (void); // Yield: let the next thread in the queue take over the CPU without suspending this thread. 
+void tt_sleep_ticks (uint32_t ticks); // Suspend this thread for 'ticks' TCNT0 clocks. 
+TT_THREAD * tt_get_current_thread (void); // Returns this thread's TT_THREAD *. 
+void tt_suspend_thread (TT_THREAD * thread_info); // Suspends some thread indefinitely. 
+void tt_wake_thread (TT_THREAD * thread_info); // Wakes up another thread. 
+void tt_suspend_me (void); // Suspends this thread indefinitely. 
+void tt_suspend_until_threads_change (TT_THREAD * thread_info); // Suspends a thread until one of the other threads exit. 
+void tt_suspend_me_until_threads_change (void); // Suspends this thread until one of the other threads exit. 
+void tt_wait_for_all_finish (void); // Keeps suspending this thread until all other threads exit. 
+void tt_exit_thread (void); // Exits this thread. Note: another way to exit a thread is simply to 'return' from its thread function. 
+
+
 #ifndef BIT
 #define BIT(n) (1<<n)
 #endif
@@ -16,11 +52,12 @@
 
 #ifdef __DMC__
 	// Macro definitions for the Digital Mars C compiler
-	typedef unsigned int uint32_t;
 	#ifdef WIN32
 		// 32-bit Windows
-		#include <windows.h>
-		#define tt_get_tick_count() GetTickCount ()
+		#include <windows.h> 
+		uint32_t tt_get_tick_count (void) { 
+			return GetTickCount (); // Just call the Win32 API function. 
+		} 
 		
 		#define TT_STACK_PROGRAM_OVERHEAD (3 * sizeof (void *))
 		#define TT_REGISTER_COUNT 8
@@ -43,13 +80,7 @@
 			asm mov eax, [ebx]
 	#else
 		// 16-bit DOS or OS/2
-		// TODO: Figure out how to get tick count?
-		
-		#define TT_SAVE_ALL() asm pushf asm pusha
-		#define TT_RESTORE_ALL() asm popa asm popf
-		
-		#define TT_GET_SP() asm mov ax, sp
-		#define TT_SET_SP() asm mov sp, ax
+		// TODO: Perhaps implement these. If we want to run threads on DOS, anyway. 
 	#endif
 	#define TT_RESET_CLOCK()
 	#define TT_RET() asm ret
@@ -77,8 +108,6 @@
 	#define TT_STACK_STATE_SAVE_SIZE (1 * TT_REGISTER_COUNT + 2)
 	#define TT_STACK_TOTAL_OVERHEAD (TT_STACK_STATE_SAVE_SIZE + TT_STACK_PROGRAM_OVERHEAD)
 	
-	// RAMPZ = 0x3F
-	// SREG = 0x3B
 	#define TT_SAVE_ALL() __asm__ __volatile__ ("push r1\npush r0\nin r0, %[p]\npush r0\nin r0, %[s]\npush r0\n	push r2\npush r3\npush r4\npush r5\npush r6\npush r7\npush r8\npush r9\npush r10\npush r11\npush r12\npush r13\npush r14\npush r15\npush r16\npush r17\npush r18\npush r19\npush r20\npush r21\npush r22\npush r23\npush r24\npush r25\npush r26\npush r27\npush r28\npush r29\npush r30\npush r31" :: [s] "I" (_SFR_IO_ADDR(SREG)), [p] "I" (_SFR_IO_ADDR(RAMPZ)) :"memory")
 	#define TT_RESTORE_ALL() __asm__ __volatile__ ("pop r31\npop r30\npop r29\npop r28\npop r27\npop r26\npop r25\npop r24\npop r23\npop r22\npop r21\npop r20\npop r19\npop r18\npop r17\npop r16\npop r15\npop r14\npop r13\npop r12\npop r11\npop r10\npop r9\npop r8\npop r7\npop r6\npop r5\npop r4\npop r3\npop r2\n	pop r0\nout %[s], r0\npop r0\nout %[p], r0\n	pop r0\npop r1" :: [s] "I" (_SFR_IO_ADDR(SREG)), [p] "I" (_SFR_IO_ADDR(RAMPZ)) :"memory")
 
@@ -90,16 +119,7 @@
 	#define __TT_SAVE_CURRENT_THREAD_SP() __asm__ __volatile__ ("st %a[tt]+, r22\nst %a[tt], r23\n" :: [tt] "e" (tt_current_thread) : "r22", "r23", "memory")
 	#define __TT_RETRIEVE_NEXT_THREAD_SP() __asm__ __volatile__ ("ld r22, %a[tt]+\nld r23, %a[tt]\n" :: [tt] "e" (tt_current_thread) : "r22", "r23")
 #else
-	volatile uint32_t tt_tick_count;
-	uint32_t tt_get_tick_count () {
-		return tt_tick_count + TCNT0;
-	}
-	#define TT_RESET_CLOCK() tt_tick_count += TCNT0; TCNT0 = 0
-	#define TT_SLEEP() asm volatile ("sleep" ::: "memory")
-	#define TT_RET() asm volatile ("ret")
-	#define TT_IRET() reti ()
-	#define TT_CLI() cli ()
-	#define TT_STI() sei ()
+	// TODO: Implement a port for ARM, perhaps? 
 #endif
 #endif
 
@@ -115,24 +135,11 @@
 #define TT_READY_ONTHREADEXIT -2
 #define TT_READY_MAXTIME -2
 
-#ifndef __DMC__ 
-// For some reason this works on GCC, but makes the Digital Mars C compiler break, so we only do this while NOT on DMC: 
-typedef unsigned short size_t; 
-#endif 
-
-// Structure that defines information about a thread's context:
-struct TT_THREAD_STRUCT {
-	void ** t_sp; // Stack Pointer.
-	size_t priority; // 0 is the highest priority.
-	uint32_t ready_at; // Tick count at which this thread is ready.
-	struct TT_THREAD_STRUCT * next_thread; // Pointer to the next thread, or nullptr.
-};
-typedef struct TT_THREAD_STRUCT TT_THREAD;
-
 // For minimum stack size, we give 16 extra bytes of leeway in case
 // the thread needs to call a function, such as tt_exit_thread (), etc.
 #define TT_MIN_STACK_SIZE (TT_STACK_TOTAL_OVERHEAD + 16)
 
+// Some internal variables for this thread scheduler: 
 TT_THREAD * volatile tt_first_thread;
 TT_THREAD * volatile tt_current_thread;
 
@@ -143,14 +150,6 @@ void * tt_idle_thread_stack [TT_MIN_STACK_SIZE / sizeof (void *) + 1024];
 #else
 void * tt_idle_thread_stack [TT_MIN_STACK_SIZE / sizeof (void *)];
 #endif
-
-// Some declarations:
-void tt_add_thread (TT_THREAD * thread_info);
-void * tt_prepare_stack (void ** stack_begin_address,
-						size_t stack_size_bytes,
-						void * code_start_address);
-void tt_exit_thread (void);
-void tt_yield (void);
 
 #ifdef WIN32
 	__declspec (naked)
@@ -236,7 +235,9 @@ void * tt_prepare_stack (void ** stack_begin_address,
 }
 
 #ifdef WIN32
-void tt_debug () {
+// tt_debug () 
+// Prints out the current threadpool state. 
+void tt_debug (void) {
 	TT_THREAD * p = tt_first_thread;
 	printf ("Debug (now = %d): \n", tt_get_tick_count ());
 	while (p) {
@@ -290,6 +291,13 @@ void tt_remove_thread (TT_THREAD * thread_info) {
 	// tt_debug ();
 }
 
+// __tt_find_next_thread () - internal function 
+// Searches the threadpool for the highest-priority 
+// thread to execute next. Only returns the next lower 
+// priority if all the highest-priority threads are 
+// inactive - in other words, ensures the high-priority 
+// threads actually finish their work before letting 
+// lower-priority threads do anything. 
 TT_THREAD * __tt_find_next_thread (void) {
 	// tt_debug ();
 	TT_THREAD * p = tt_first_thread;
@@ -305,6 +313,9 @@ TT_THREAD * __tt_find_next_thread (void) {
 	return p; // Otherwise, sleep or something if p is null (no threads ready).
 }
 
+// __tt_task_switch () - internal function 
+// Does the actual task switching, the 
+// bare-metal work involved with that. 
 #ifdef __DMC__
 	__declspec(naked)
 #else
