@@ -225,7 +225,7 @@ void * tt_prepare_stack (void ** stack_begin_address,
 	#else
 		// Assuming sizeof (void *) is 2 for AVR.
 		p[-3] = 0;
-		p[-4] = (void *) (SREG | ((uint16_t) RAMPZ << 8));
+		p[-4] = (void *) ((uint16_t) SREG | ((uint16_t) RAMPZ << 8));
 		size_t i;
 		for (i = 5; i < 3 + TT_REGISTER_COUNT / sizeof (void *); i++)
 			p[-i] = 0;
