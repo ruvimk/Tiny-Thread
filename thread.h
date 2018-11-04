@@ -202,7 +202,8 @@ void tt_init (void) {
 	__attribute__ ((naked))
 #endif
 void __tt_restore_and_return (void) {
-	TT_RESTORE ();
+	TT_RESTORE (); 
+	TT_STI (); 
 	TT_RET ();
 }
 
@@ -212,6 +213,7 @@ void __tt_restore_and_return (void) {
 
 #ifdef __AVR__ 
 	#define TT_MAKE_RETURN_ADDRESS(x) ((void *) TT_SWAP_ENDIAN (x)) 
+	//#define TT_MAKE_RETURN_ADDRESS(x) x 
 #else 
 	#define TT_MAKE_RETURN_ADDRESS(x) x 
 #endif 
@@ -220,9 +222,9 @@ void * tt_prepare_stack (void ** stack_begin_address,
 						size_t stack_size_bytes,
 						void * code_start_address) {
 	void ** p = stack_begin_address + stack_size_bytes / sizeof (void *);
+	#ifdef WIN32
 	p[-1] = TT_MAKE_RETURN_ADDRESS (tt_exit_thread);
 	p[-2] = TT_MAKE_RETURN_ADDRESS (code_start_address);
-	#ifdef WIN32
 		uint32_t t_eflags;
 		asm pushfd asm pop dword ptr [t_eflags]
 		p[-3] = (void *) t_eflags;
@@ -233,17 +235,23 @@ void * tt_prepare_stack (void ** stack_begin_address,
 		p[-4 - TT_REGISTER_COUNT] = TT_MAKE_RETURN_ADDRESS (__tt_restore_and_return); 
 		return &p[-4 - TT_REGISTER_COUNT];
 	#else
-		// Assuming sizeof (void *) is 2 for AVR. 
-		p[-3] = 0;
-		p[-4] = (void *) ((uint16_t) SREG | ((uint16_t) RAMPZ << 8));
-		size_t i;
-		// for (i = 5; i < 30; i++) p[-i] = 0; 
-		for (i = 5; i < 4 + TT_REGISTER_COUNT / sizeof (void *); i++)
-			p[-i] = 0;
-		p[-4 - TT_REGISTER_COUNT / sizeof (void *)] = TT_MAKE_RETURN_ADDRESS (__tt_restore_and_return); 
-		return &p[-4 - TT_REGISTER_COUNT / sizeof (void *)] - 1; // The -1 needed because AVR uses a pre-increment scheme for RET instructions. 
-		// p[-20] = __tt_restore_and_return; 
-		// return &p[-20]; 
+	uint8_t * m_sp = (uint8_t *) &p[-1]; 
+#define M_PUSH(x) (*m_sp-- = x) 
+		M_PUSH (TT_LO8 (tt_exit_thread)); 
+		M_PUSH (TT_HI8 (tt_exit_thread)); 
+		M_PUSH (TT_LO8 (code_start_address)); 
+		M_PUSH (TT_HI8 (code_start_address)); 
+		M_PUSH (0); 
+		M_PUSH (0); 
+		M_PUSH (RAMPZ); 
+		M_PUSH (SREG); 
+		size_t i; 
+		for (i = 0; i < TT_REGISTER_COUNT - 2; i++) 
+			M_PUSH (0); 
+		M_PUSH (TT_LO8 (__tt_restore_and_return)); 
+		M_PUSH (TT_HI8 (__tt_restore_and_return)); 
+		return m_sp; 
+#undef M_PUSH 
 	#endif
 }
 
@@ -421,7 +429,6 @@ ISR(TIMER0_OVF_vect, ISR_NAKED) {
 	__tt_task_switch ();
 	PORTE &= ~BIT (5);
 	TT_RESTORE ();
-	TT_STI ();
 	TT_IRET ();
 }
 #endif
