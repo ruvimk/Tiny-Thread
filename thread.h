@@ -227,10 +227,10 @@ void * tt_prepare_stack (void ** stack_begin_address,
 		p[-3] = 0;
 		p[-4] = (void *) ((uint16_t) SREG | ((uint16_t) RAMPZ << 8));
 		size_t i;
-		for (i = 5; i < 3 + TT_REGISTER_COUNT / sizeof (void *); i++)
+		for (i = 5; i < 4 + TT_REGISTER_COUNT / sizeof (void *); i++)
 			p[-i] = 0;
-		p[-3 - TT_REGISTER_COUNT / sizeof (void *)] = __tt_restore_and_return;
-		return &p[-3 - TT_REGISTER_COUNT / sizeof (void *)];
+		p[-4 - TT_REGISTER_COUNT / sizeof (void *)] = __tt_restore_and_return;
+		return &p[-4 - TT_REGISTER_COUNT / sizeof (void *)];
 	#endif
 }
 
