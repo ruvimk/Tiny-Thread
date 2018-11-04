@@ -229,7 +229,7 @@ void * tt_prepare_stack (void ** stack_begin_address,
 		size_t i;
 		for (i = 5; i < 3 + TT_REGISTER_COUNT / sizeof (void *); i++)
 			p[-i] = 0;
-		p[-3 - TT_REGISTER_COUNT / sizeof (void *)] = code_start_address;
+		p[-3 - TT_REGISTER_COUNT / sizeof (void *)] = __tt_restore_and_return;
 		return &p[-3 - TT_REGISTER_COUNT / sizeof (void *)];
 	#endif
 }
