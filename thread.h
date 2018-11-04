@@ -40,6 +40,10 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define BIT(n) (1<<n)
 #endif
 
+// Use prescaler of 8, which results in a clock period of 128 us: 
+#define TT_HW_CLOCK_SETUP (BIT (CS01)) 
+#define TT_HW_CLOCK_PERIOD 128 
+
 // Brief descriptions of sizes:
 
 // TT_STACK_PROGRAM_OVERHEAD: extra space on the stack for tt_exit_thread,
@@ -189,7 +193,7 @@ void tt_init (void) {
 	// On hardware systems, also do: set up clock, interrupt, and sleep mode.
 #ifdef __AVR__
 	// Set up clock:
-	TCCR0 = BIT (CS01); // Normal, low prescaling (fast clock).
+	TCCR0 = TT_HW_CLOCK_SETUP; 
 	TIMSK |= BIT (TOIE0); // Enable interrupts on TCNT0 overflow.
 	// Enable sleeping (mode 000, Idle) and interrupts:
 	MCUCR = (MCUCR & ~(BIT (SM0) | BIT (SM1) | BIT (SM2))) | BIT (SE);
@@ -370,6 +374,13 @@ void tt_sleep_ticks (uint32_t ticks) {
 	tt_current_thread->ready_at = tt_get_tick_count () + ticks;
 	tt_yield ();
 }
+void tt_sleep_us (uint32_t microseconds) { 
+	// There are 256 ticks per every CLOCK_PERIOD microseconds: 
+	tt_sleep_ticks (microseconds * 256 / TT_HW_CLOCK_PERIOD); 
+} 
+void tt_sleep_ms (uint32_t milliseconds) { 
+	tt_sleep_us (milliseconds * 1000); 
+} 
 
 TT_THREAD * tt_get_current_thread (void) {
 	return tt_current_thread;
