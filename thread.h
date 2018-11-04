@@ -207,7 +207,7 @@ void __tt_restore_and_return (void) {
 }
 
 #ifdef __AVR__ 
-	#define TT_MAKE_RETURN_ADDRESS(x) ((void *) (((x & 0xFF) << 8) | (x >> 8))) 
+	#define TT_MAKE_RETURN_ADDRESS(x) ((void *) (((((void *) x) & 0xFF) << 8) | (((void *) x) >> 8))) 
 #else 
 	#define TT_MAKE_RETURN_ADDRESS(x) x 
 #endif 
