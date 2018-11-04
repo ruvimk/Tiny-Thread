@@ -223,14 +223,17 @@ void * tt_prepare_stack (void ** stack_begin_address,
 		p[-4 - TT_REGISTER_COUNT] = __tt_restore_and_return;
 		return &p[-4 - TT_REGISTER_COUNT];
 	#else
-		// Assuming sizeof (void *) is 2 for AVR.
+		// Assuming sizeof (void *) is 2 for AVR. 
 		p[-3] = 0;
 		p[-4] = (void *) ((uint16_t) SREG | ((uint16_t) RAMPZ << 8));
 		size_t i;
-		for (i = 5; i < 4 + TT_REGISTER_COUNT / sizeof (void *); i++)
-			p[-i] = 0;
-		p[-4 - TT_REGISTER_COUNT / sizeof (void *)] = __tt_restore_and_return;
-		return &p[-4 - TT_REGISTER_COUNT / sizeof (void *)];
+		for (i = 5; i < 30; i++) p[-i] = 0; 
+		// for (i = 5; i < 4 + TT_REGISTER_COUNT / sizeof (void *); i++)
+			// p[-i] = 0;
+		//p[-4 - TT_REGISTER_COUNT / sizeof (void *)] = __tt_restore_and_return;
+		//return &p[-4 - TT_REGISTER_COUNT / sizeof (void *)];
+		p[-20] = __tt_restore_and_return; 
+		return &p[-20]; 
 	#endif
 }
 
