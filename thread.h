@@ -231,7 +231,7 @@ void * tt_prepare_stack (void ** stack_begin_address,
 		for (i = 5; i < 4 + TT_REGISTER_COUNT / sizeof (void *); i++)
 			p[-i] = 0;
 		p[-4 - TT_REGISTER_COUNT / sizeof (void *)] = __tt_restore_and_return;
-		return &p[-4 - TT_REGISTER_COUNT / sizeof (void *)];
+		return &p[-4 - TT_REGISTER_COUNT / sizeof (void *)] - 1; // The -1 needed because AVR uses a pre-increment scheme for RET instructions. 
 		// p[-20] = __tt_restore_and_return; 
 		// return &p[-20]; 
 	#endif
