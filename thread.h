@@ -206,8 +206,12 @@ void __tt_restore_and_return (void) {
 	TT_RET ();
 }
 
+#define TT_LO8(x) (((uint16_t) x) & 0xFF) 
+#define TT_HI8(x) (((uint16_t) x >> 8) & 0xFF) 
+#define TT_SWAP_ENDIAN(x) ((TT_LO8 (x) << 8) | TT_HI8 (x)) 
+
 #ifdef __AVR__ 
-	#define TT_MAKE_RETURN_ADDRESS(x) ((void *) (((((uint16_t) x) & 0xFF) << 8) | (((uint16_t) x) >> 8))) 
+	#define TT_MAKE_RETURN_ADDRESS(x) ((void *) TT_SWAP_ENDIAN (x)) 
 #else 
 	#define TT_MAKE_RETURN_ADDRESS(x) x 
 #endif 
@@ -226,7 +230,7 @@ void * tt_prepare_stack (void ** stack_begin_address,
 		for (i = 4; i < 4 + TT_REGISTER_COUNT; i++) {
 			p[-i] = 0;
 		}
-		p[-4 - TT_REGISTER_COUNT] = __tt_restore_and_return;
+		p[-4 - TT_REGISTER_COUNT] = TT_MAKE_RETURN_ADDRESS (__tt_restore_and_return); 
 		return &p[-4 - TT_REGISTER_COUNT];
 	#else
 		// Assuming sizeof (void *) is 2 for AVR. 
@@ -236,7 +240,7 @@ void * tt_prepare_stack (void ** stack_begin_address,
 		// for (i = 5; i < 30; i++) p[-i] = 0; 
 		for (i = 5; i < 4 + TT_REGISTER_COUNT / sizeof (void *); i++)
 			p[-i] = 0;
-		p[-4 - TT_REGISTER_COUNT / sizeof (void *)] = TT_MAKE_RETURN_ADDRESS (__tt_restore_and_return);
+		p[-4 - TT_REGISTER_COUNT / sizeof (void *)] = TT_MAKE_RETURN_ADDRESS (__tt_restore_and_return); 
 		return &p[-4 - TT_REGISTER_COUNT / sizeof (void *)] - 1; // The -1 needed because AVR uses a pre-increment scheme for RET instructions. 
 		// p[-20] = __tt_restore_and_return; 
 		// return &p[-20]; 
