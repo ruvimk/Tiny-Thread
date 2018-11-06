@@ -216,13 +216,6 @@ void __tt_restore_and_return (void) {
 #define TT_HI8(x) (((uint16_t) x >> 8) & 0xFF) 
 #define TT_SWAP_ENDIAN(x) ((TT_LO8 (x) << 8) | TT_HI8 (x)) 
 
-#ifdef __AVR__ 
-	#define TT_MAKE_RETURN_ADDRESS(x) ((void *) TT_SWAP_ENDIAN (x)) 
-	//#define TT_MAKE_RETURN_ADDRESS(x) x 
-#else 
-	#define TT_MAKE_RETURN_ADDRESS(x) x 
-#endif 
-
 void * tt_prepare_stack (uint8_t * stack_begin_address,
 						size_t stack_size_bytes,
 						void * code_start_address) {
