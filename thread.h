@@ -36,6 +36,24 @@ void tt_suspend_me_until_threads_change (void); // Suspends this thread until on
 void tt_wait_for_all_finish (void); // Keeps suspending this thread until all other threads exit. 
 void tt_exit_thread (void); // Exits this thread. Note: another way to exit a thread is simply to 'return' from its thread function. 
 
+// The following three macros may be defined (BEFORE including thread.h) by the C program in 
+// order to control what happens just before a thread switch is done. For example, check IO? 
+
+// On timer up: executed from the ISR(TIMER0_OVF_vect), just before task switch. 
+#ifndef TT_ONTIMERUP 
+#define TT_ONTIMERUP() ; 
+#endif 
+
+// On thread yield: executed from yield (), just before task switch. 
+#ifndef TT_ONTHREADYIELD 
+#define TT_ONTHREADYIELD() ; 
+#endif 
+
+// On task switch: executed after ONTIMERUP or after ONTHREADYIELD, but before task switch in either case. 
+#ifndef TT_ONTASKSWITCH 
+#define TT_ONTASKSWITCH() ; 
+#endif 
+
 
 #ifndef BIT
 #define BIT(n) (1<<n)
@@ -361,6 +379,8 @@ void tt_yield (void) {
 	TT_CLI ();
 	TT_RESET_CLOCK ();
 	TT_SAVE ();
+	TT_ONTHREADYIELD (); 
+	TT_ONTASKSWITCH (); 
 	__tt_task_switch ();
 	TT_RESTORE ();
 	TT_STI ();
@@ -433,6 +453,8 @@ ISR(TIMER0_OVF_vect, ISR_NAKED) {
 	TT_SAVE ();
 	PORTE |= BIT (5);
 	tt_tick_count += BIT (8);
+	TT_ONTIMERUP (); 
+	TT_ONTASKSWITCH (); 
 	__tt_task_switch ();
 	PORTE &= ~BIT (5);
 	TT_RESTORE ();

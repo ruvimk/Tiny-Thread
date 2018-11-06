@@ -1,5 +1,5 @@
 ; Disassembly of file: test.obj
-; Tue Nov  6 11:10:31 2018
+; Tue Nov  6 11:20:35 2018
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: 80386
