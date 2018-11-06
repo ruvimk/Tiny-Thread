@@ -3,6 +3,7 @@
 #ifdef __DMC__ 
 // For some reason Digital Mars C compiler does not have this predefined, so: 
 typedef unsigned int uint32_t; 
+typedef unsigned char uint8_t; 
 #else 
 // For some reason this works on GCC, but makes the Digital Mars C compiler break, so we only do this while NOT on DMC: 
 typedef unsigned short size_t; 
@@ -21,7 +22,7 @@ typedef struct TT_THREAD_STRUCT TT_THREAD;
 void tt_init (void); // Initialize this scheduler - call at the beginning of main (). 
 void tt_add_thread (TT_THREAD * thread_info); // Add a thread to the queue. To start a thread, simply fill out a TT_THREAD structure, and call this function. 
 void tt_remove_thread (TT_THREAD * thread_info); // Remove a thread from the queue. 
-void * tt_prepare_stack (void ** stack_begin_address, // Convenience function to help fill out the t_sp member of a TT_THREAD structure. 
+void * tt_prepare_stack (uint8_t * stack_begin_address, // Convenience function to help fill out the t_sp member of a TT_THREAD structure. 
 						size_t stack_size_bytes, 
 						void * code_start_address); 
 void tt_yield (void); // Yield: let the next thread in the queue take over the CPU without suspending this thread. 
@@ -150,9 +151,9 @@ TT_THREAD * volatile tt_current_thread;
 TT_THREAD tt_obj_main_thread;
 TT_THREAD tt_obj_idle_thread;
 #ifdef WIN32
-void * tt_idle_thread_stack [TT_MIN_STACK_SIZE / sizeof (void *) + 1024];
+uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE + 4096];
 #else
-void * tt_idle_thread_stack [TT_MIN_STACK_SIZE / sizeof (void *)];
+uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE];
 #endif
 
 #ifdef WIN32
@@ -222,24 +223,26 @@ void __tt_restore_and_return (void) {
 	#define TT_MAKE_RETURN_ADDRESS(x) x 
 #endif 
 
-void * tt_prepare_stack (void ** stack_begin_address,
+void * tt_prepare_stack (uint8_t * stack_begin_address,
 						size_t stack_size_bytes,
 						void * code_start_address) {
-	void ** p = stack_begin_address + stack_size_bytes / sizeof (void *);
 	#ifdef WIN32
-	p[-1] = TT_MAKE_RETURN_ADDRESS (tt_exit_thread);
-	p[-2] = TT_MAKE_RETURN_ADDRESS (code_start_address);
+	void ** p = (void **) stack_begin_address;
+	size_t s = stack_size_bytes / sizeof (void *); 
+#define M_PUSH(x) (p[--s] = x) 
+	M_PUSH (tt_exit_thread); 
+	M_PUSH (code_start_address); 
 		uint32_t t_eflags;
 		asm pushfd asm pop dword ptr [t_eflags]
-		p[-3] = (void *) t_eflags;
+		M_PUSH ((void *) t_eflags); 
 		size_t i;
-		for (i = 4; i < 4 + TT_REGISTER_COUNT; i++) {
-			p[-i] = 0;
-		}
-		p[-4 - TT_REGISTER_COUNT] = TT_MAKE_RETURN_ADDRESS (__tt_restore_and_return); 
-		return &p[-4 - TT_REGISTER_COUNT];
+		for (i = 0; i < TT_REGISTER_COUNT; i++) 
+			M_PUSH (0); 
+		M_PUSH (__tt_restore_and_return); 
+		return &p[s]; 
+#undef M_PUSH 
 	#else
-	uint8_t * m_sp = (uint8_t *) &p[-1]; 
+	uint8_t * m_sp = stack_begin_address + stack_size_bytes - 1; 
 #define M_PUSH(x) (*m_sp-- = x) 
 		M_PUSH (TT_LO8 (tt_exit_thread)); 
 		M_PUSH (TT_HI8 (tt_exit_thread)); 
