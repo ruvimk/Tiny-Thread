@@ -341,8 +341,7 @@ TT_THREAD * __tt_find_next_thread (void) {
 	// tt_debug ();
 	TT_THREAD * p = tt_first_thread;
 	uint32_t now = tt_get_tick_count ();
-	while (p && (p == tt_current_thread || p->ready_at > now ||
-			p->ready_at >= TT_READY_MAXTIME))
+	while (p && (p == tt_current_thread || p->ready_at > now))
 		p = p->next_thread;
 	if ((!p || p->priority > tt_current_thread->priority)
 		&& tt_current_thread->ready_at <= now) {
