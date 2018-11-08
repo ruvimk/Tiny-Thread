@@ -36,6 +36,9 @@ void tt_suspend_me_until_threads_change (void); // Suspends this thread until on
 void tt_wait_for_all_finish (void); // Keeps suspending this thread until all other threads exit. 
 void tt_exit_thread (void); // Exits this thread. Note: another way to exit a thread is simply to 'return' from its thread function. 
 
+#define TT_THREAD_MAIN &tt_obj_main_thread 
+#define TT_THREAD_IDLE &tt_obj_idle_thread 
+
 // The following three macros may be defined (BEFORE including thread.h) by the C program in 
 // order to control what happens just before a thread switch is done. For example, check IO? 
 
