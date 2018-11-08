@@ -187,9 +187,6 @@ uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE];
 	__attribute__ ((naked))
 	void __tt_just_hang (void) {
 		while (1) {
-			TT_CLI ();
-			PORTB |= BIT (0) | BIT (1);
-			TT_STI ();
 			TT_SLEEP ();
 		}
 	}
