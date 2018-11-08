@@ -62,9 +62,11 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define BIT(n) (1<<n)
 #endif
 
+#ifndef TT_HW_CLOCK_SETUP 
 // Use prescaler of 8, which results in a clock period of 128 us: 
 #define TT_HW_CLOCK_SETUP (BIT (CS01)) 
 #define TT_HW_CLOCK_PERIOD 128 
+#endif 
 
 // Brief descriptions of sizes:
 
