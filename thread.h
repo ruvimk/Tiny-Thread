@@ -387,16 +387,22 @@ void tt_yield (void) {
 	TT_STI ();
 }
 
+#define tt_us_to_ticks(us) (us * 256 / TT_HW_CLOCK_PERIOD) 
+#define tt_ms_to_ticks(ms) (tt_us_to_ticks (ms * 1000)) 
 void tt_sleep_ticks (uint32_t ticks) {
 	tt_current_thread->ready_at = tt_get_tick_count () + ticks;
 	tt_yield ();
 }
 void tt_sleep_us (uint32_t microseconds) { 
 	// There are 256 ticks per every CLOCK_PERIOD microseconds: 
-	tt_sleep_ticks (microseconds * 256 / TT_HW_CLOCK_PERIOD); 
+	tt_sleep_ticks (tt_us_to_ticks (microseconds)); 
 } 
 void tt_sleep_ms (uint32_t milliseconds) { 
-	tt_sleep_us (milliseconds * 1000); 
+	tt_sleep_ticks (tt_ms_to_ticks (milliseconds)); 
+} 
+void tt_sleep_until (uint32_t tick_count) { 
+	tt_current_thread->ready_at = tick_count; 
+	tt_yield (); 
 } 
 
 TT_THREAD * tt_get_current_thread (void) {
