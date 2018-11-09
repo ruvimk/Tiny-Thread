@@ -595,7 +595,7 @@ void tt_mutex_lock (volatile TT_MUTEX * mutex) {
 } 
 void tt_mutex_unlock (volatile TT_MUTEX * mutex) { 
 	TT_CLI (); 
-	TT_THREAD * p = tt_first_thread; 
+	volatile TT_THREAD * p = tt_first_thread; 
 	while (p) { 
 		if (p->waiting_for == mutex) { 
 			mutex->taken_by = p; 
@@ -616,7 +616,7 @@ void tt_mutex_unlock (volatile TT_MUTEX * mutex) {
 
 void tt_wait_for_all_finish (void) {
 	volatile TT_THREAD * me = tt_get_current_thread ();
-	TT_THREAD * idler = &tt_obj_idle_thread;
+	volatile TT_THREAD * idler = &tt_obj_idle_thread;
 	size_t other_threads = 0;
 	do {
 		tt_suspend_me_until_threads_change ();
