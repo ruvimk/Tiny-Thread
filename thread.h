@@ -193,9 +193,10 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define TT_READY_ONTHREADEXIT -2
 #define TT_READY_MAXTIME -2
 
-// For minimum stack size, we give 16 extra bytes of leeway in case
+// For minimum stack size, we give 14 extra bytes of leeway in case
 // the thread needs to call a function, such as tt_exit_thread (), etc.
-#define TT_MIN_STACK_SIZE (TT_STACK_TOTAL_OVERHEAD + 16)
+// For AVR, this minimum stack size is thus 64 bytes. 
+#define TT_MIN_STACK_SIZE (TT_STACK_TOTAL_OVERHEAD + 14)
 
 // Some internal variables for this thread scheduler: 
 volatile TT_THREAD * volatile tt_first_thread;
