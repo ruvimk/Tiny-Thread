@@ -14,7 +14,7 @@ struct TT_MUTEX_STRUCT;
 
 // Structure that defines information about a thread's context:
 struct TT_THREAD_STRUCT {
-	void ** t_sp; // Stack Pointer.
+	uint8_t * t_sp; // Stack Pointer.
 	size_t priority; // 0 is the highest priority.
 	uint32_t ready_at; // Tick count at which this thread is ready.
 	volatile struct TT_MUTEX_STRUCT * volatile waiting_for; 
@@ -32,7 +32,7 @@ typedef struct TT_MUTEX_STRUCT TT_MUTEX;
 void tt_init (void); // Initialize this scheduler - call at the beginning of main (). 
 void tt_add_thread (volatile TT_THREAD * thread_info); // Add a thread to the queue. To start a thread, simply fill out a TT_THREAD structure, and call this function. 
 void tt_remove_thread (volatile TT_THREAD * thread_info); // Remove a thread from the queue. 
-void * tt_prepare_stack (volatile uint8_t * stack_begin_address, // Convenience function to help fill out the t_sp member of a TT_THREAD structure. 
+volatile uint8_t * tt_prepare_stack (volatile uint8_t * stack_begin_address, // Convenience function to help fill out the t_sp member of a TT_THREAD structure. 
 						size_t stack_size_bytes, 
 						void * code_start_address); 
 void tt_yield (void); // Yield: let the next thread in the queue take over the CPU without suspending this thread. 
@@ -266,11 +266,11 @@ void __tt_restore_and_return (void) {
 #define TT_HI8(x) (((uint16_t) x >> 8) & 0xFF) 
 #define TT_SWAP_ENDIAN(x) ((TT_LO8 (x) << 8) | TT_HI8 (x)) 
 
-void * tt_prepare_stack (volatile uint8_t * stack_begin_address,
+volatile uint8_t * tt_prepare_stack (volatile uint8_t * stack_begin_address,
 						size_t stack_size_bytes,
 						void * code_start_address) {
 	#ifdef WIN32
-	void ** p = (void **) stack_begin_address;
+	volatile void ** p = (volatile void **) stack_begin_address;
 	size_t s = stack_size_bytes / sizeof (void *); 
 #define M_PUSH(x) (p[--s] = x) 
 	M_PUSH (tt_exit_thread); 
@@ -282,10 +282,10 @@ void * tt_prepare_stack (volatile uint8_t * stack_begin_address,
 		for (i = 0; i < TT_REGISTER_COUNT; i++) 
 			M_PUSH (0); 
 		M_PUSH (__tt_restore_and_return); 
-		return &p[s]; 
+		return (volatile uint8_t *) (&p[s]); 
 #undef M_PUSH 
 	#else
-	uint8_t * m_sp = stack_begin_address + stack_size_bytes - 1; 
+	volatile uint8_t * m_sp = stack_begin_address + stack_size_bytes - 1; 
 #define M_PUSH(x) (*m_sp-- = x) 
 		M_PUSH (TT_LO8 (tt_exit_thread)); 
 		M_PUSH (TT_HI8 (tt_exit_thread)); 
