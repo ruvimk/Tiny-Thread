@@ -14,9 +14,9 @@ struct TT_MUTEX_STRUCT;
 
 // Structure that defines information about a thread's context:
 struct TT_THREAD_STRUCT {
-	uint8_t * t_sp; // Stack Pointer.
+	volatile uint8_t * t_sp; // Stack Pointer.
 	size_t priority; // 0 is the highest priority.
-	uint32_t ready_at; // Tick count at which this thread is ready.
+	volatile uint32_t ready_at; // Tick count at which this thread is ready.
 	volatile struct TT_MUTEX_STRUCT * volatile waiting_for; 
 	volatile struct TT_THREAD_STRUCT * volatile next_thread; // Pointer to the next thread, or nullptr.
 };

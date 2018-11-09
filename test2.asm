@@ -1,5 +1,5 @@
 ; Disassembly of file: test2.obj
-; Fri Nov  9 13:29:28 2018
+; Fri Nov  9 13:31:16 2018
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: 80386
@@ -832,106 +832,105 @@ _main:  ; Function begin
         mov     dword [ebp-0C078H], eax                 ; 07D2 _ 89. 85, FFFF3F88
         mov     ecx, 128                                ; 07D8 _ B9, 00000080
         mov     dword [ebp-0C074H], ecx                 ; 07DD _ 89. 8D, FFFF3F8C
-        xor     edx, edx                                ; 07E3 _ 31. D2
-        mov     dword [ebp-0C070H], edx                 ; 07E5 _ 89. 95, FFFF3F90
-        mov     dword [ebp-0C06CH], edx                 ; 07EB _ 89. 95, FFFF3F94
-        mov     dword [ebp-0C068H], edx                 ; 07F1 _ 89. 95, FFFF3F98
-        lea     ebx, [ebp-0C078H]                       ; 07F7 _ 8D. 9D, FFFF3F88
-        mov     dword [__acrtused_con], ebx             ; 07FD _ 89. 1D, 00000000(segrel)
-        push    ebx                                     ; 0803 _ 53
-        call    _tt_add_thread                          ; 0804 _ E8, FFFFF94A
-        push    FLAT:_test2                             ; 0809 _ 68, 0000060E(segrel)
-        push    8192                                    ; 080E _ 68, 00002000
-        lea     esi, [ebp-0A050H]                       ; 0813 _ 8D. B5, FFFF5FB0
-        push    esi                                     ; 0819 _ 56
-        call    _tt_prepare_stack                       ; 081A _ E8, FFFFF858
-        mov     dword [ebp-0A064H], eax                 ; 081F _ 89. 85, FFFF5F9C
-        mov     dword [ebp-0A060H], 124                 ; 0825 _ C7. 85, FFFF5FA0, 0000007C
-        mov     dword [ebp-0A05CH], 0                   ; 082F _ C7. 85, FFFF5FA4, 00000000
-        mov     dword [ebp-0A058H], 0                   ; 0839 _ C7. 85, FFFF5FA8, 00000000
-        mov     dword [ebp-0A054H], 0                   ; 0843 _ C7. 85, FFFF5FAC, 00000000
-        lea     eax, [ebp-0A064H]                       ; 084D _ 8D. 85, FFFF5F9C
-        mov     dword [__acrtused_con], eax             ; 0853 _ A3, 00000000(segrel)
-        push    eax                                     ; 0858 _ 50
-        call    _tt_add_thread                          ; 0859 _ E8, FFFFF8F5
-        push    FLAT:_test3                             ; 085E _ 68, 0000068E(segrel)
-        push    8192                                    ; 0863 _ 68, 00002000
-        lea     ecx, [ebp-803CH]                        ; 0868 _ 8D. 8D, FFFF7FC4
-        push    ecx                                     ; 086E _ 51
-        call    _tt_prepare_stack                       ; 086F _ E8, FFFFF803
-        mov     dword [ebp-8050H], eax                  ; 0874 _ 89. 85, FFFF7FB0
-        mov     dword [ebp-804CH], 126                  ; 087A _ C7. 85, FFFF7FB4, 0000007E
-        mov     dword [ebp-8048H], 0                    ; 0884 _ C7. 85, FFFF7FB8, 00000000
-        mov     dword [ebp-8044H], 0                    ; 088E _ C7. 85, FFFF7FBC, 00000000
-        mov     dword [ebp-8040H], 0                    ; 0898 _ C7. 85, FFFF7FC0, 00000000
-        lea     edx, [ebp-8050H]                        ; 08A2 _ 8D. 95, FFFF7FB0
-        mov     dword [__acrtused_con], edx             ; 08A8 _ 89. 15, 00000000(segrel)
-        push    edx                                     ; 08AE _ 52
-        call    _tt_add_thread                          ; 08AF _ E8, FFFFF89F
-        push    FLAT:_test4                             ; 08B4 _ 68, 000006D8(segrel)
-        push    8192                                    ; 08B9 _ 68, 00002000
-        lea     ebx, [ebp-6028H]                        ; 08BE _ 8D. 9D, FFFF9FD8
-        push    ebx                                     ; 08C4 _ 53
-        call    _tt_prepare_stack                       ; 08C5 _ E8, FFFFF7AD
-        mov     dword [ebp-603CH], eax                  ; 08CA _ 89. 85, FFFF9FC4
-        mov     esi, dword [ebp-804CH]                  ; 08D0 _ 8B. B5, FFFF7FB4
-        mov     dword [ebp-6038H], esi                  ; 08D6 _ 89. B5, FFFF9FC8
-        mov     dword [ebp-6034H], -1                   ; 08DC _ C7. 85, FFFF9FCC, FFFFFFFF
-        mov     dword [ebp-6030H], 0                    ; 08E6 _ C7. 85, FFFF9FD0, 00000000
-        mov     dword [ebp-602CH], 0                    ; 08F0 _ C7. 85, FFFF9FD4, 00000000
-        lea     eax, [ebp-603CH]                        ; 08FA _ 8D. 85, FFFF9FC4
-        mov     dword [__acrtused_con], eax             ; 0900 _ A3, 00000000(segrel)
-        push    eax                                     ; 0905 _ 50
-        call    _tt_add_thread                          ; 0906 _ E8, FFFFF848
-        push    FLAT:_test5                             ; 090B _ 68, 00000703(segrel)
-        push    8192                                    ; 0910 _ 68, 00002000
-        lea     ecx, [ebp-4014H]                        ; 0915 _ 8D. 8D, FFFFBFEC
-        push    ecx                                     ; 091B _ 51
-        call    _tt_prepare_stack                       ; 091C _ E8, FFFFF756
-        mov     dword [ebp-4028H], eax                  ; 0921 _ 89. 85, FFFFBFD8
-        mov     dword [ebp-4024H], 128                  ; 0927 _ C7. 85, FFFFBFDC, 00000080
-        mov     dword [ebp-4020H], 0                    ; 0931 _ C7. 85, FFFFBFE0, 00000000
-        mov     dword [ebp-401CH], 0                    ; 093B _ C7. 85, FFFFBFE4, 00000000
-        mov     dword [ebp-4018H], 0                    ; 0945 _ C7. 85, FFFFBFE8, 00000000
-        lea     edx, [ebp-4028H]                        ; 094F _ 8D. 95, FFFFBFD8
-        mov     dword [__acrtused_con], edx             ; 0955 _ 89. 15, 00000000(segrel)
-        push    edx                                     ; 095B _ 52
-        call    _tt_add_thread                          ; 095C _ E8, FFFFF7F2
-        push    FLAT:_test6                             ; 0961 _ 68, 00000725(segrel)
-        push    8192                                    ; 0966 _ 68, 00002000
-        lea     ebx, [ebp-2000H]                        ; 096B _ 8D. 9D, FFFFE000
-        push    ebx                                     ; 0971 _ 53
-        call    _tt_prepare_stack                       ; 0972 _ E8, FFFFF700
-        mov     dword [ebp-2014H], eax                  ; 0977 _ 89. 85, FFFFDFEC
-        mov     esi, dword [ebp-804CH]                  ; 097D _ 8B. B5, FFFF7FB4
-        mov     dword [ebp-2010H], esi                  ; 0983 _ 89. B5, FFFFDFF0
-        mov     dword [ebp-200CH], 0                    ; 0989 _ C7. 85, FFFFDFF4, 00000000
-        mov     dword [ebp-2008H], 0                    ; 0993 _ C7. 85, FFFFDFF8, 00000000
-        mov     dword [ebp-2004H], 0                    ; 099D _ C7. 85, FFFFDFFC, 00000000
-        lea     eax, [ebp-2014H]                        ; 09A7 _ 8D. 85, FFFFDFEC
-        mov     dword [__acrtused_con], eax             ; 09AD _ A3, 00000000(segrel)
-        push    eax                                     ; 09B2 _ 50
-        call    _tt_add_thread                          ; 09B3 _ E8, FFFFF79B
-        call    _tt_suspend_me                          ; 09B8 _ E8, FFFFFAE0
-        add     esp, 96                                 ; 09BD _ 83. C4, 60
-        mov     dword [ebp-0C07CH], 0                   ; 09C0 _ C7. 85, FFFF3F84, 00000000
-?_061:  cmp     dword [ebp-0C07CH], 12                  ; 09CA _ 83. BD, FFFF3F84, 0C
-        jnc     ?_062                                   ; 09D1 _ 73, 1A
-        push    FLAT:?_078                              ; 09D3 _ 68, 00000108(segrel)
-        call    __acrtused_con                          ; 09D8 _ E8, 00000000(rel)
-        call    _tt_yield                               ; 09DD _ E8, FFFFFA24
-        add     esp, 4                                  ; 09E2 _ 83. C4, 04
-        inc     dword [ebp-0C07CH]                      ; 09E5 _ FF. 85, FFFF3F84
-        jmp     ?_061                                   ; 09EB _ EB, DD
+        mov     dword [ebp-0C070H], 0                   ; 07E3 _ C7. 85, FFFF3F90, 00000000
+        mov     dword [ebp-0C06CH], 0                   ; 07ED _ C7. 85, FFFF3F94, 00000000
+        mov     dword [ebp-0C068H], 0                   ; 07F7 _ C7. 85, FFFF3F98, 00000000
+        lea     edx, [ebp-0C078H]                       ; 0801 _ 8D. 95, FFFF3F88
+        mov     dword [__acrtused_con], edx             ; 0807 _ 89. 15, 00000000(segrel)
+        push    edx                                     ; 080D _ 52
+        call    _tt_add_thread                          ; 080E _ E8, FFFFF940
+        push    FLAT:_test2                             ; 0813 _ 68, 0000060E(segrel)
+        push    8192                                    ; 0818 _ 68, 00002000
+        lea     ebx, [ebp-0A050H]                       ; 081D _ 8D. 9D, FFFF5FB0
+        push    ebx                                     ; 0823 _ 53
+        call    _tt_prepare_stack                       ; 0824 _ E8, FFFFF84E
+        mov     dword [ebp-0A064H], eax                 ; 0829 _ 89. 85, FFFF5F9C
+        mov     dword [ebp-0A060H], 124                 ; 082F _ C7. 85, FFFF5FA0, 0000007C
+        mov     dword [ebp-0A05CH], 0                   ; 0839 _ C7. 85, FFFF5FA4, 00000000
+        mov     dword [ebp-0A058H], 0                   ; 0843 _ C7. 85, FFFF5FA8, 00000000
+        mov     dword [ebp-0A054H], 0                   ; 084D _ C7. 85, FFFF5FAC, 00000000
+        lea     esi, [ebp-0A064H]                       ; 0857 _ 8D. B5, FFFF5F9C
+        mov     dword [__acrtused_con], esi             ; 085D _ 89. 35, 00000000(segrel)
+        push    esi                                     ; 0863 _ 56
+        call    _tt_add_thread                          ; 0864 _ E8, FFFFF8EA
+        push    FLAT:_test3                             ; 0869 _ 68, 0000068E(segrel)
+        push    8192                                    ; 086E _ 68, 00002000
+        lea     eax, [ebp-803CH]                        ; 0873 _ 8D. 85, FFFF7FC4
+        push    eax                                     ; 0879 _ 50
+        call    _tt_prepare_stack                       ; 087A _ E8, FFFFF7F8
+        mov     dword [ebp-8050H], eax                  ; 087F _ 89. 85, FFFF7FB0
+        mov     dword [ebp-804CH], 126                  ; 0885 _ C7. 85, FFFF7FB4, 0000007E
+        mov     dword [ebp-8048H], 0                    ; 088F _ C7. 85, FFFF7FB8, 00000000
+        mov     dword [ebp-8044H], 0                    ; 0899 _ C7. 85, FFFF7FBC, 00000000
+        mov     dword [ebp-8040H], 0                    ; 08A3 _ C7. 85, FFFF7FC0, 00000000
+        lea     ecx, [ebp-8050H]                        ; 08AD _ 8D. 8D, FFFF7FB0
+        mov     dword [__acrtused_con], ecx             ; 08B3 _ 89. 0D, 00000000(segrel)
+        push    ecx                                     ; 08B9 _ 51
+        call    _tt_add_thread                          ; 08BA _ E8, FFFFF894
+        push    FLAT:_test4                             ; 08BF _ 68, 000006D8(segrel)
+        push    8192                                    ; 08C4 _ 68, 00002000
+        lea     edx, [ebp-6028H]                        ; 08C9 _ 8D. 95, FFFF9FD8
+        push    edx                                     ; 08CF _ 52
+        call    _tt_prepare_stack                       ; 08D0 _ E8, FFFFF7A2
+        mov     dword [ebp-603CH], eax                  ; 08D5 _ 89. 85, FFFF9FC4
+        mov     ebx, dword [ebp-804CH]                  ; 08DB _ 8B. 9D, FFFF7FB4
+        mov     dword [ebp-6038H], ebx                  ; 08E1 _ 89. 9D, FFFF9FC8
+        mov     dword [ebp-6034H], -1                   ; 08E7 _ C7. 85, FFFF9FCC, FFFFFFFF
+        mov     dword [ebp-6030H], 0                    ; 08F1 _ C7. 85, FFFF9FD0, 00000000
+        mov     dword [ebp-602CH], 0                    ; 08FB _ C7. 85, FFFF9FD4, 00000000
+        lea     esi, [ebp-603CH]                        ; 0905 _ 8D. B5, FFFF9FC4
+        mov     dword [__acrtused_con], esi             ; 090B _ 89. 35, 00000000(segrel)
+        push    esi                                     ; 0911 _ 56
+        call    _tt_add_thread                          ; 0912 _ E8, FFFFF83C
+        push    FLAT:_test5                             ; 0917 _ 68, 00000703(segrel)
+        push    8192                                    ; 091C _ 68, 00002000
+        lea     eax, [ebp-4014H]                        ; 0921 _ 8D. 85, FFFFBFEC
+        push    eax                                     ; 0927 _ 50
+        call    _tt_prepare_stack                       ; 0928 _ E8, FFFFF74A
+        mov     dword [ebp-4028H], eax                  ; 092D _ 89. 85, FFFFBFD8
+        mov     dword [ebp-4024H], 128                  ; 0933 _ C7. 85, FFFFBFDC, 00000080
+        mov     dword [ebp-4020H], 0                    ; 093D _ C7. 85, FFFFBFE0, 00000000
+        mov     dword [ebp-401CH], 0                    ; 0947 _ C7. 85, FFFFBFE4, 00000000
+        mov     dword [ebp-4018H], 0                    ; 0951 _ C7. 85, FFFFBFE8, 00000000
+        lea     ecx, [ebp-4028H]                        ; 095B _ 8D. 8D, FFFFBFD8
+        mov     dword [__acrtused_con], ecx             ; 0961 _ 89. 0D, 00000000(segrel)
+        push    ecx                                     ; 0967 _ 51
+        call    _tt_add_thread                          ; 0968 _ E8, FFFFF7E6
+        push    FLAT:_test6                             ; 096D _ 68, 00000725(segrel)
+        push    8192                                    ; 0972 _ 68, 00002000
+        lea     edx, [ebp-2000H]                        ; 0977 _ 8D. 95, FFFFE000
+        push    edx                                     ; 097D _ 52
+        call    _tt_prepare_stack                       ; 097E _ E8, FFFFF6F4
+        mov     dword [ebp-2014H], eax                  ; 0983 _ 89. 85, FFFFDFEC
+        mov     ebx, dword [ebp-804CH]                  ; 0989 _ 8B. 9D, FFFF7FB4
+        mov     dword [ebp-2010H], ebx                  ; 098F _ 89. 9D, FFFFDFF0
+        mov     dword [ebp-200CH], 0                    ; 0995 _ C7. 85, FFFFDFF4, 00000000
+        mov     dword [ebp-2008H], 0                    ; 099F _ C7. 85, FFFFDFF8, 00000000
+        mov     dword [ebp-2004H], 0                    ; 09A9 _ C7. 85, FFFFDFFC, 00000000
+        lea     esi, [ebp-2014H]                        ; 09B3 _ 8D. B5, FFFFDFEC
+        mov     dword [__acrtused_con], esi             ; 09B9 _ 89. 35, 00000000(segrel)
+        push    esi                                     ; 09BF _ 56
+        call    _tt_add_thread                          ; 09C0 _ E8, FFFFF78E
+        call    _tt_suspend_me                          ; 09C5 _ E8, FFFFFAD3
+        add     esp, 96                                 ; 09CA _ 83. C4, 60
+        mov     dword [ebp-0C07CH], 0                   ; 09CD _ C7. 85, FFFF3F84, 00000000
+?_061:  cmp     dword [ebp-0C07CH], 12                  ; 09D7 _ 83. BD, FFFF3F84, 0C
+        jnc     ?_062                                   ; 09DE _ 73, 1A
+        push    FLAT:?_078                              ; 09E0 _ 68, 00000108(segrel)
+        call    __acrtused_con                          ; 09E5 _ E8, 00000000(rel)
+        call    _tt_yield                               ; 09EA _ E8, FFFFFA17
+        add     esp, 4                                  ; 09EF _ 83. C4, 04
+        inc     dword [ebp-0C07CH]                      ; 09F2 _ FF. 85, FFFF3F84
+        jmp     ?_061                                   ; 09F8 _ EB, DD
 ; _main End of function
 
 ?_062:  ; Local function
-        call    _tt_wait_for_all_finish                 ; 09ED _ E8, FFFFFB71
-        xor     eax, eax                                ; 09F2 _ 31. C0
-        pop     esi                                     ; 09F4 _ 5E
-        pop     ebx                                     ; 09F5 _ 5B
-        leave                                           ; 09F6 _ C9
-        ret                                             ; 09F7 _ C3
+        call    _tt_wait_for_all_finish                 ; 09FA _ E8, FFFFFB64
+        xor     eax, eax                                ; 09FF _ 31. C0
+        pop     esi                                     ; 0A01 _ 5E
+        pop     ebx                                     ; 0A02 _ 5B
+        leave                                           ; 0A03 _ C9
+        ret                                             ; 0A04 _ C3
 
 
 SECTION .DATA   align=4 noexecute                       ; section number 2, data
