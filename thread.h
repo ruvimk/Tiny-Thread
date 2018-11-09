@@ -32,7 +32,7 @@ typedef struct TT_MUTEX_STRUCT TT_MUTEX;
 void tt_init (void); // Initialize this scheduler - call at the beginning of main (). 
 void tt_add_thread (volatile TT_THREAD * thread_info); // Add a thread to the queue. To start a thread, simply fill out a TT_THREAD structure, and call this function. 
 void tt_remove_thread (volatile TT_THREAD * thread_info); // Remove a thread from the queue. 
-void * tt_prepare_stack (uint8_t * stack_begin_address, // Convenience function to help fill out the t_sp member of a TT_THREAD structure. 
+void * tt_prepare_stack (volatile uint8_t * stack_begin_address, // Convenience function to help fill out the t_sp member of a TT_THREAD structure. 
 						size_t stack_size_bytes, 
 						void * code_start_address); 
 void tt_yield (void); // Yield: let the next thread in the queue take over the CPU without suspending this thread. 
@@ -266,7 +266,7 @@ void __tt_restore_and_return (void) {
 #define TT_HI8(x) (((uint16_t) x >> 8) & 0xFF) 
 #define TT_SWAP_ENDIAN(x) ((TT_LO8 (x) << 8) | TT_HI8 (x)) 
 
-void * tt_prepare_stack (uint8_t * stack_begin_address,
+void * tt_prepare_stack (volatile uint8_t * stack_begin_address,
 						size_t stack_size_bytes,
 						void * code_start_address) {
 	#ifdef WIN32
