@@ -9,14 +9,24 @@ typedef unsigned char uint8_t;
 typedef unsigned short size_t; 
 #endif 
 
+struct TT_THREAD_STRUCT; 
+struct TT_MUTEX_STRUCT; 
+
 // Structure that defines information about a thread's context:
 struct TT_THREAD_STRUCT {
 	void ** t_sp; // Stack Pointer.
 	size_t priority; // 0 is the highest priority.
 	uint32_t ready_at; // Tick count at which this thread is ready.
+	struct TT_MUTEX_STRUCT * waiting_for; 
 	struct TT_THREAD_STRUCT * next_thread; // Pointer to the next thread, or nullptr.
 };
 typedef struct TT_THREAD_STRUCT TT_THREAD;
+
+// Shared resource access synchronization: 
+struct TT_MUTEX_STRUCT { 
+	TT_THREAD * taken_by; 
+}; 
+typedef struct TT_MUTEX_STRUCT TT_MUTEX; 
 
 // Some declarations:
 void tt_init (void); // Initialize this scheduler - call at the beginning of main (). 
@@ -342,9 +352,19 @@ void tt_remove_thread (TT_THREAD * thread_info) {
 TT_THREAD * __tt_find_next_thread (void) {
 	// tt_debug ();
 	TT_THREAD * p = tt_first_thread;
-	uint32_t now = tt_get_tick_count ();
-	while (p && (p == tt_current_thread || p->ready_at > now))
+	uint32_t now = tt_get_tick_count (); 
+	TT_THREAD * n = 0; // Next thread. 
+	while (p) { 
+		if (p->ready_at <= now) { 
+			// This is the next thread to execute. 
+			if (p->waiting_for) { 
+				// Oh, but it's waiting for a shared resource. 
+				// Go find the thread that is using that resource! 
+				n = p; 
+			} else return p; // Not waiting? Go for it! 
+		} 
 		p = p->next_thread;
+	} 
 	if ((!p || p->priority > tt_current_thread->priority)
 		&& tt_current_thread->ready_at <= now) {
 		// No other threads are ready, so keep running this thread.
@@ -387,8 +407,8 @@ void tt_yield (void) {
 	TT_STI ();
 }
 
-#define tt_us_to_ticks(us) (us * 256 / TT_HW_CLOCK_PERIOD) 
-#define tt_ms_to_ticks(ms) (tt_us_to_ticks (ms * 1000)) 
+#define tt_us_to_ticks(us) ((uint32_t) us * 256 / TT_HW_CLOCK_PERIOD) 
+#define tt_ms_to_ticks(ms) (tt_us_to_ticks ((uint32_t) ms * 1000)) 
 void tt_sleep_ticks (uint32_t ticks) {
 	tt_current_thread->ready_at = tt_get_tick_count () + ticks;
 	tt_yield ();
