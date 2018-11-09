@@ -49,6 +49,13 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define TT_THREAD_MAIN &tt_obj_main_thread 
 #define TT_THREAD_IDLE &tt_obj_idle_thread 
 
+// The following macro may be modified to control what happens on a mutex deadlock (for example, 
+// if thread 1 is waiting for a mutex taken by thread 2, but thread 2 is waiting for a mutex 
+// taken by thread 1): 
+#ifndef TT_ONMUTEXDEADLOCK 
+#define TT_ONMUTEXDEADLOCK() ; 
+#endif 
+
 // The following three macros may be defined (BEFORE including thread.h) by the C program in 
 // order to control what happens just before a thread switch is done. For example, check IO? 
 
@@ -120,6 +127,12 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 		// 16-bit DOS or OS/2
 		// TODO: Perhaps implement these. If we want to run threads on DOS, anyway. 
 	#endif
+	#ifdef DEBUG 
+		#if DEBUG 
+			#define TT_DEBUG_POINT() printf ("%s:%d: %s ()\n", __FILE__, __LINE__, __FUNCTION__) 
+			#define TT_DEBUG_VALUE(label, x) printf ("%s:%d: %s (): %s = %x\n", __FILE__, __LINE__, __FUNCTION__, label, x) 
+		#endif 
+	#endif 
 	#define TT_RESET_CLOCK()
 	#define TT_RET() asm ret
 	#define TT_IRET() TT_RET ()
@@ -160,6 +173,13 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 	// TODO: Implement a port for ARM, perhaps? 
 #endif
 #endif
+
+#ifndef TT_DEBUG_POINT 
+#define TT_DEBUG_POINT() ; 
+#endif 
+#ifndef TT_DEBUG_VALUE 
+#define TT_DEBUG_VALUE(label, x) ; 
+#endif 
 
 #define TT_SAVE() TT_SAVE_ALL ()
 #define TT_RESTORE() TT_RESTORE_ALL ()
@@ -292,7 +312,7 @@ void tt_debug (void) {
 	TT_THREAD * p = tt_first_thread;
 	printf ("Debug (now = %d): \n", tt_get_tick_count ());
 	while (p) {
-		printf ("Thread; priority: %d; ready: %d;\n", p->priority, p->ready_at);
+		printf ("Thread; priority: %x; ready: %x;\n", p->priority, p->ready_at);
 		p = p->next_thread;
 	}
 	printf ("\n");
@@ -353,24 +373,127 @@ TT_THREAD * __tt_find_next_thread (void) {
 	// tt_debug ();
 	TT_THREAD * p = tt_first_thread;
 	uint32_t now = tt_get_tick_count (); 
-	TT_THREAD * n = 0; // Next thread. 
+	TT_DEBUG_VALUE ("Current Thread Priority", tt_current_thread->priority); 
+	TT_DEBUG_VALUE ("Current Thread Ready At", tt_current_thread->ready_at); 
+	TT_DEBUG_VALUE ("Current Thread Waiting For", tt_current_thread->waiting_for); 
+	TT_DEBUG_VALUE ("Current Tick Count", now); 
 	while (p) { 
-		if (p->ready_at <= now) { 
-			// This is the next thread to execute. 
-			if (p->waiting_for) { 
-				// Oh, but it's waiting for a shared resource. 
-				// Go find the thread that is using that resource! 
-				n = p; 
-			} else return p; // Not waiting? Go for it! 
+		TT_DEBUG_POINT (); 
+		TT_DEBUG_VALUE ("Priority", p->priority); 
+		if (p->priority == tt_current_thread->priority) { 
+			TT_DEBUG_POINT (); 
+			// Case: we searched for higher-priority threads, yet did not find any; 
+			// Thus, we need to execute whatever threads are in the list. 
+			// Think of example: 
+			// 1. Thread, priority 0 
+			// 2. Thread, priority 1 
+			// 3. Thread, priority 50 
+			// 4. Thread, priority 50 
+			// 5. Thread, priority 50 
+			// 6. Thread, priority 71 
+			// In the ideal case, if we are thread 4, and we want to know what's 
+			// next to execute, first (1st) we need to check for ready threads priority 0-49. 
+			// That's the outside 'while' loop. 
+			// Next (2nd), we need to loop through all the ready threads of THIS priority, 
+			// but rather than starting from thread 3 in the example above, we would search 
+			// in the following order: 5, 3, 4. Because 4 is this thread, so we need to 
+			// start our search just after this thread, and then go all the way around 
+			// the threads of this same priority (50). 
+			// Finally (3rd), if we still did not find a thread to execute, then the 
+			// last state is to search starting from thread 6, priority just below us, 
+			// and just find the highest-priority one. 
+			TT_THREAD * first_within_priority = p; 
+			TT_THREAD * first_next_priority; 
+			TT_THREAD * q = tt_current_thread->next_thread; 
+			// Finally, when we find a thread we think should be executed next, but it is 
+			// waiting for a shared resource, then we should look at what thread is taking 
+			// up the shared resource, and try to execute that thread; if that thread is 
+			// waiting for yet a different shared resource, then we should go to the thread 
+			// that is taking up that resource, and so on. This is a recursive process. 
+			// And if we end up returning to the original thread in a circle, then we 
+			// have a problem, which could be a system failure; we could reset in that 
+			// case. Or do some other behavior, depending on the TT_ONMUTEXDEADLOCK() macro. 
+			TT_THREAD * r = 0; 
+			// Search threads tt_current_thread+1 to the next priority 
+			// (in the example above, this would just be thread 5): 
+			TT_DEBUG_POINT (); 
+			TT_DEBUG_VALUE ("Priority", q->priority); 
+			while (q && q->priority == tt_current_thread->priority) { 
+				TT_DEBUG_POINT (); 
+				TT_DEBUG_VALUE ("Ready At", q->ready_at); 
+				if (q->ready_at <= now) { 
+					TT_DEBUG_POINT (); 
+					r = q; 
+					TT_DEBUG_VALUE ("Waiting For", r->waiting_for); 
+					while (r && r->waiting_for) 
+						r = r->waiting_for->taken_by; 
+					if (r) return r; 
+					TT_DEBUG_POINT (); 
+				} 
+				q = q->next_thread; 
+			} 
+			first_next_priority = q; // The above 'while' loop breaks when it reaches the threads in the next priority. 
+			TT_DEBUG_POINT (); 
+			// Now, ... 
+			// Search threads of first of this priority through the current thread 
+			// (example above: this would be threads 3, 4): 
+			q = first_within_priority; 
+			TT_DEBUG_VALUE ("First Within Priority: Priority", q->priority); 
+			do { 
+				TT_DEBUG_POINT (); 
+				TT_DEBUG_VALUE ("Ready At", q->ready_at); 
+				if (q->ready_at <= now) { 
+					TT_DEBUG_POINT (); 
+					r = q; 
+					TT_DEBUG_VALUE ("Waiting For", r->waiting_for); 
+					while (r && r->waiting_for) 
+						r = r->waiting_for->taken_by; 
+					if (r) return r; 
+					TT_DEBUG_POINT (); 
+				} 
+				if (q == tt_current_thread) break; // Should end on current thread. 
+				q = q->next_thread; 
+			} while (q); 
+			TT_DEBUG_POINT (); 
+			// Okay, at stage 3 of the thread search, we search priorities P+1 and on: 
+			q = first_next_priority; 
+			TT_DEBUG_VALUE ("First Next Priority: Priority", q->priority); 
+			while (q) { 
+				TT_DEBUG_POINT (); 
+				TT_DEBUG_VALUE ("Ready At", q->ready_at); 
+				if (q->ready_at <= now) { 
+					TT_DEBUG_POINT (); 
+					r = q; 
+					TT_DEBUG_VALUE ("Waiting For", r->waiting_for); 
+					while (r && r->waiting_for) 
+						r = r->waiting_for->taken_by; 
+					if (r) return r; 
+					TT_DEBUG_POINT (); 
+				} 
+				q = q->next_thread; 
+			} 
+			TT_DEBUG_POINT (); 
+			// If all else fails, break, which will return 0: 
+			break; 
 		} 
-		p = p->next_thread;
+		TT_DEBUG_POINT (); 
+		// Search thread priorities 0 - (P-1), where P is the tt_current_thread priority: 
+		TT_DEBUG_VALUE ("Ready At", p->ready_at); 
+		if (p->ready_at <= now) { 
+			TT_DEBUG_POINT (); 
+			// This is the next thread to execute. 
+			TT_THREAD * r = p; 
+			TT_DEBUG_VALUE ("Waiting For", r->waiting_for); 
+			while (r && r->waiting_for) 
+				r = r->waiting_for->taken_by; 
+			if (r) return r; 
+			TT_DEBUG_POINT (); 
+		} 
+		TT_DEBUG_POINT (); 
+		p = p->next_thread; 
 	} 
-	if ((!p || p->priority > tt_current_thread->priority)
-		&& tt_current_thread->ready_at <= now) {
-		// No other threads are ready, so keep running this thread.
-		return tt_current_thread;
-	}
-	return p; // Otherwise, sleep or something if p is null (no threads ready).
+	TT_DEBUG_POINT (); 
+	return 0; 
 }
 
 // __tt_task_switch () - internal function 
@@ -402,6 +525,13 @@ void tt_yield (void) {
 	TT_SAVE ();
 	TT_ONTHREADYIELD (); 
 	TT_ONTASKSWITCH (); 
+#if WIN32 
+#ifdef DEBUG 
+#if DEBUG 
+	tt_debug (); 
+#endif 
+#endif 
+#endif 
 	__tt_task_switch ();
 	TT_RESTORE ();
 	TT_STI ();
@@ -454,6 +584,36 @@ void tt_suspend_me_until_threads_change (void) {
 	tt_yield ();
 }
 
+void tt_mutex_lock (TT_MUTEX * mutex) { 
+	TT_CLI (); 
+	if (mutex->taken_by) { 
+		// Resource already taken; we need to wait for it: 
+		tt_current_thread->waiting_for = mutex; 
+		tt_yield (); 
+	} else mutex->taken_by = tt_current_thread; 
+	TT_STI (); 
+} 
+void tt_mutex_unlock (TT_MUTEX * mutex) { 
+	TT_CLI (); 
+	TT_THREAD * p = tt_first_thread; 
+	while (p) { 
+		if (p->waiting_for == mutex) { 
+			mutex->taken_by = p; 
+			p->waiting_for = 0; 
+			if (p->priority < tt_current_thread->priority) { 
+				tt_yield (); 
+				return; 
+			} 
+			TT_STI (); 
+			return; 
+		} 
+		p = p->next_thread; 
+	} 
+	// If no threads found waiting for this mutex, just set its "taken by" attribute to 0: 
+	mutex->taken_by = 0; 
+	TT_STI (); 
+} 
+
 void tt_wait_for_all_finish (void) {
 	TT_THREAD * me = tt_get_current_thread ();
 	TT_THREAD * idler = &tt_obj_idle_thread;
@@ -482,6 +642,13 @@ ISR(TIMER0_OVF_vect, ISR_NAKED) {
 	tt_tick_count += BIT (8);
 	TT_ONTIMERUP (); 
 	TT_ONTASKSWITCH (); 
+#if WIN32 
+#ifdef DEBUG 
+#if DEBUG 
+	tt_debug (); 
+#endif 
+#endif 
+#endif 
 	__tt_task_switch ();
 	PORTE &= ~BIT (5);
 	TT_RESTORE ();

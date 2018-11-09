@@ -8,6 +8,9 @@ TT_THREAD * pThread2;
 TT_THREAD * pThread3; 
 TT_THREAD * pThread4; 
 TT_THREAD * pThread5; 
+TT_THREAD * pThread6; 
+
+TT_MUTEX mutex_a; 
 
 void test1 () { 
 	size_t i; 
@@ -22,8 +25,16 @@ void test2 () {
 	tt_suspend_me (); 
 	printf ("\t\tThread 2 again!\n"); 
 	size_t i; 
-	for (i = 0; i < 8; i++) { 
+	for (i = 0; i < 12; i++) { 
 		printf ("\t\tThread 2\n"); 
+		if (i == 2) { 
+			printf ("\t\tLocking mutex A\n"); 
+			tt_mutex_lock (&mutex_a); 
+		} 
+		if (i == 7) { 
+			printf ("\t\tUnlocking mutex A\n"); 
+			tt_mutex_unlock (&mutex_a); 
+		} 
 		tt_yield (); 
 	} 
 } 
@@ -51,11 +62,28 @@ void test5 () {
 	printf ("Thread 5 stop\n"); 
 } 
 
+void test6 () { 
+	size_t i = 0; 
+	for (i = 0; i < 12; i++) { 
+		printf ("\tThread 6\n"); 
+		if (i == 2) { 
+			printf ("\tLocking mutex A\n"); 
+			tt_mutex_lock (&mutex_a); 
+		} 
+		if (i == 8) { 
+			printf ("\tUnlocking mutex A\n"); 
+			tt_mutex_unlock (&mutex_a); 
+		} 
+		tt_yield (); 
+	} 
+} 
+
 int main (int argc, char * argv []) { 
 	size_t i; 
 	tt_init (); 
 	pThreadMain = tt_get_current_thread (); 
 	TT_THREAD thread1; 
+	mutex_a.taken_by = 0; 
 	uint8_t stack1 [8192]; 
 	thread1.t_sp = tt_prepare_stack (stack1, sizeof (stack1), test1); 
 	thread1.priority = TT_PRIORITY_NORMAL; 
@@ -95,6 +123,14 @@ int main (int argc, char * argv []) {
 	thread5.waiting_for = 0; 
 	thread5.next_thread = 0; 
 	tt_add_thread (pThread5 = &thread5); 
+	TT_THREAD thread6; 
+	uint8_t stack6 [8192]; 
+	thread6.t_sp = tt_prepare_stack (stack6, sizeof (stack6), test6); 
+	thread6.priority = thread3.priority; 
+	thread6.ready_at = 0; 
+	thread6.waiting_for = 0; 
+	thread6.next_thread = 0; 
+	tt_add_thread (pThread6 = &thread6); 
 	// tt_debug (); 
 	tt_suspend_me (); 
 	for (i = 0; i < 12; i++) { 

@@ -1,0 +1,70 @@
+		Thread 2
+	Thread 6
+	Thread 3
+	Thread 6
+	Thread 3
+	Thread 6
+	Locking mutex A
+	Thread 3
+	Thread 6
+	Thread 3
+	Thread 6
+		Thread 2 again!
+		Thread 2
+		Thread 2
+		Thread 2
+		Locking mutex A
+	Thread 6
+	Thread 6
+	Thread 6
+	Thread 6
+	Unlocking mutex A
+		Thread 2
+		Thread 2
+		Thread 2
+		Thread 2
+		Thread 2
+		Unlocking mutex A
+		Thread 2
+		Thread 2
+		Thread 2
+		Thread 2
+	Thread 3
+	Thread 6
+	Thread 4
+	Thread 3
+	Thread 6
+	Thread 4
+	Thread 3
+	Thread 6
+	Thread 4
+	Thread 3
+	Thread 4
+	Thread 4
+	Thread 4
+	Thread 4
+	Thread 4
+Thread 5 start
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Thread 1
+Hello World!
+Thread 1
+Hello World!
+Thread 1
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Thread 5 stop
