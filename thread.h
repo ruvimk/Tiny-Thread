@@ -109,6 +109,9 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 		#define TT_STACK_STATE_SAVE_SIZE (4 * TT_REGISTER_COUNT + 4)
 		#define TT_STACK_TOTAL_OVERHEAD (TT_STACK_STATE_SAVE_SIZE + TT_STACK_PROGRAM_OVERHEAD)
 		
+		// TODO: Get an actual number by looking at the call tree for this: 
+		#define __TT_LIBRARY_MAX_STACK_DEPTH 1024 
+		
 		#define TT_SAVE_ALL() asm pushfd asm pushad
 		#define TT_RESTORE_ALL() asm popad asm popfd
 		
@@ -159,6 +162,10 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 	#define TT_STACK_STATE_SAVE_SIZE (1 * TT_REGISTER_COUNT + 2)
 	#define TT_STACK_TOTAL_OVERHEAD (TT_STACK_STATE_SAVE_SIZE + TT_STACK_PROGRAM_OVERHEAD)
 	
+	// The following number can be determined by looking at thread.h's call tree 
+	// (please do change it if the call tree changes): 
+	#define __TT_LIBRARY_MAX_STACK_DEPTH 32 
+	
 	#define TT_SAVE_ALL() __asm__ __volatile__ ("push r1\npush r0\nin r0, %[p]\npush r0\nin r0, %[s]\npush r0\n	push r2\npush r3\npush r4\npush r5\npush r6\npush r7\npush r8\npush r9\npush r10\npush r11\npush r12\npush r13\npush r14\npush r15\npush r16\npush r17\npush r18\npush r19\npush r20\npush r21\npush r22\npush r23\npush r24\npush r25\npush r26\npush r27\npush r28\npush r29\npush r30\npush r31" :: [s] "I" (_SFR_IO_ADDR(SREG)), [p] "I" (_SFR_IO_ADDR(RAMPZ)) :"memory")
 	#define TT_RESTORE_ALL() __asm__ __volatile__ ("pop r31\npop r30\npop r29\npop r28\npop r27\npop r26\npop r25\npop r24\npop r23\npop r22\npop r21\npop r20\npop r19\npop r18\npop r17\npop r16\npop r15\npop r14\npop r13\npop r12\npop r11\npop r10\npop r9\npop r8\npop r7\npop r6\npop r5\npop r4\npop r3\npop r2\n	pop r0\nout %[s], r0\npop r0\nout %[p], r0\n	pop r0\npop r1" :: [s] "I" (_SFR_IO_ADDR(SREG)), [p] "I" (_SFR_IO_ADDR(RAMPZ)) :"memory")
 
@@ -193,10 +200,11 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define TT_READY_ONTHREADEXIT -2
 #define TT_READY_MAXTIME -2
 
-// For minimum stack size, we give 14 extra bytes of leeway in case
-// the thread needs to call a function, such as tt_exit_thread (), etc.
-// For AVR, this minimum stack size is thus 64 bytes. 
-#define TT_MIN_STACK_SIZE (TT_STACK_TOTAL_OVERHEAD + 14)
+// For minimum stack size, we give the size of thread save/restore, 
+// PLUS __TT_LIBRARY_MAX_STACK_DEPTH bytes of stack depth if the 
+// thread is going to use API of this library (which will itself 
+// take up stack space): 
+#define TT_MIN_STACK_SIZE (TT_STACK_TOTAL_OVERHEAD + __TT_LIBRARY_MAX_STACK_DEPTH) 
 
 // Some internal variables for this thread scheduler: 
 volatile TT_THREAD * volatile tt_first_thread;

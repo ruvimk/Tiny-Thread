@@ -1,0 +1,82 @@
+
+Here, we list the number of bytes of stack space each function takes 
+up. The return address size is included in the counts. 
+
+Quick reference on ATMega128.3: 
+void *: 2 bytes 
+size_t: probably 2 bytes 
+
+Call tree for AVR (we list bytes of stack space each function takes up on ATMega128.3): 
+
+Maximum call depth function: tt_wait_for_all_finish () 
+Maximum call stack depth: 32 
+
+tt_get_tick_count (): 2 
+
+tt_prepare_stack (): 6 
+tt_add_thread (): 6 
+tt_remove_thread (): 4 
+
+__tt_find_next_thread (): 16 
+: stack self usage: 14 
+: tt_get_tick_count (): 2 
+
+__tt_task_switch (): 18 
+: stack self usage: 2 
+: __tt_find_next_thread (): 16 
+
+tt_yield (): 20 
+: stack self usage: 2 
+: __tt_task_switch (): 18 
+
+tt_sleep_ticks (): 22 
+: stack self usage: 2 
+: tt_yield (): 20 
+
+tt_sleep_us (): 24 
+: stack self usage: 2 
+: tt_sleep_ticks (): 22 
+
+tt_sleep_ms (): 24 
+: stack self usage: 2 
+: tt_sleep_ticks (): 22 
+
+tt_sleep_until (): 22 
+: stack self usage: 2 
+: tt_yield (): 20 
+
+tt_get_current_thread (): 2 
+
+tt_suspend_thread (): 2 
+
+tt_wake_thread (): 22 
+: stack self usage: 2 
+: tt_yield (): 20 
+
+tt_suspend_me (): 22 
+: stack self usage: 2 
+: tt_yield (): 20 
+
+tt_suspend_until_threads_change (): 2 
+
+tt_suspend_me_until_threads_change (): 22 
+: stack self usage: 2 
+: tt_yield (): 20 
+
+tt_mutex_lock (): 22 
+: stack self usage: 2 
+: tt_yield (): 20 
+
+tt_mutex_unlock (): 24 
+: stack self usage: 4 
+: tt_yield (): 20 
+
+tt_wait_for_all_finish (): 32 
+: stack self usage: 10 
+: tt_suspend_me_until_threads_change (): 22 
+
+tt_exit_thread (): 24 
+: stack self usage: 2 
+: tt_remove_thread (): 4 
+: OR tt_suspend_me (): 22 
+
