@@ -17,31 +17,31 @@ struct TT_THREAD_STRUCT {
 	void ** t_sp; // Stack Pointer.
 	size_t priority; // 0 is the highest priority.
 	uint32_t ready_at; // Tick count at which this thread is ready.
-	struct TT_MUTEX_STRUCT * waiting_for; 
-	struct TT_THREAD_STRUCT * next_thread; // Pointer to the next thread, or nullptr.
+	volatile struct TT_MUTEX_STRUCT * volatile waiting_for; 
+	volatile struct TT_THREAD_STRUCT * volatile next_thread; // Pointer to the next thread, or nullptr.
 };
 typedef struct TT_THREAD_STRUCT TT_THREAD;
 
 // Shared resource access synchronization: 
 struct TT_MUTEX_STRUCT { 
-	TT_THREAD * taken_by; 
+	volatile TT_THREAD * taken_by; 
 }; 
 typedef struct TT_MUTEX_STRUCT TT_MUTEX; 
 
 // Some declarations:
 void tt_init (void); // Initialize this scheduler - call at the beginning of main (). 
-void tt_add_thread (TT_THREAD * thread_info); // Add a thread to the queue. To start a thread, simply fill out a TT_THREAD structure, and call this function. 
-void tt_remove_thread (TT_THREAD * thread_info); // Remove a thread from the queue. 
+void tt_add_thread (volatile TT_THREAD * thread_info); // Add a thread to the queue. To start a thread, simply fill out a TT_THREAD structure, and call this function. 
+void tt_remove_thread (volatile TT_THREAD * thread_info); // Remove a thread from the queue. 
 void * tt_prepare_stack (uint8_t * stack_begin_address, // Convenience function to help fill out the t_sp member of a TT_THREAD structure. 
 						size_t stack_size_bytes, 
 						void * code_start_address); 
 void tt_yield (void); // Yield: let the next thread in the queue take over the CPU without suspending this thread. 
 void tt_sleep_ticks (uint32_t ticks); // Suspend this thread for 'ticks' TCNT0 clocks. 
-TT_THREAD * tt_get_current_thread (void); // Returns this thread's TT_THREAD *. 
-void tt_suspend_thread (TT_THREAD * thread_info); // Suspends some thread indefinitely. 
-void tt_wake_thread (TT_THREAD * thread_info); // Wakes up another thread. 
+volatile TT_THREAD * tt_get_current_thread (void); // Returns this thread's TT_THREAD *. 
+void tt_suspend_thread (volatile TT_THREAD * thread_info); // Suspends some thread indefinitely. 
+void tt_wake_thread (volatile TT_THREAD * thread_info); // Wakes up another thread. 
 void tt_suspend_me (void); // Suspends this thread indefinitely. 
-void tt_suspend_until_threads_change (TT_THREAD * thread_info); // Suspends a thread until one of the other threads exit. 
+void tt_suspend_until_threads_change (volatile TT_THREAD * thread_info); // Suspends a thread until one of the other threads exit. 
 void tt_suspend_me_until_threads_change (void); // Suspends this thread until one of the other threads exit. 
 void tt_wait_for_all_finish (void); // Keeps suspending this thread until all other threads exit. 
 void tt_exit_thread (void); // Exits this thread. Note: another way to exit a thread is simply to 'return' from its thread function. 
@@ -198,15 +198,15 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define TT_MIN_STACK_SIZE (TT_STACK_TOTAL_OVERHEAD + 16)
 
 // Some internal variables for this thread scheduler: 
-TT_THREAD * volatile tt_first_thread;
-TT_THREAD * volatile tt_current_thread;
+volatile TT_THREAD * volatile tt_first_thread;
+volatile TT_THREAD * volatile tt_current_thread;
 
-TT_THREAD tt_obj_main_thread;
-TT_THREAD tt_obj_idle_thread;
+volatile TT_THREAD tt_obj_main_thread;
+volatile TT_THREAD tt_obj_idle_thread;
 #ifdef WIN32
-uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE + 4096];
+volatile uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE + 4096];
 #else
-uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE];
+volatile uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE];
 #endif
 
 #ifdef WIN32
@@ -309,7 +309,7 @@ void * tt_prepare_stack (uint8_t * stack_begin_address,
 // tt_debug () 
 // Prints out the current threadpool state. 
 void tt_debug (void) {
-	TT_THREAD * p = tt_first_thread;
+	volatile TT_THREAD * p = tt_first_thread;
 	printf ("Debug (now = %d): \n", tt_get_tick_count ());
 	while (p) {
 		printf ("Thread; priority: %x; ready: %x;\n", p->priority, p->ready_at);
@@ -319,8 +319,8 @@ void tt_debug (void) {
 }
 #endif
 
-void tt_add_thread (TT_THREAD * thread_info) {
-	TT_THREAD * p = tt_first_thread;
+void tt_add_thread (volatile TT_THREAD * thread_info) {
+	volatile TT_THREAD * p = tt_first_thread;
 	size_t need = thread_info->priority;
 	if (need <= p->priority) {
 		// This thread should be first; add it at the beginning.
@@ -342,8 +342,8 @@ void tt_add_thread (TT_THREAD * thread_info) {
 	// tt_debug ();
 }
 
-void tt_remove_thread (TT_THREAD * thread_info) {
-	TT_THREAD * p = tt_first_thread;
+void tt_remove_thread (volatile TT_THREAD * thread_info) {
+	volatile TT_THREAD * p = tt_first_thread;
 	if (p == thread_info) {
 		// This is the first thread; remove it.
 		tt_first_thread = p->next_thread;
@@ -369,9 +369,9 @@ void tt_remove_thread (TT_THREAD * thread_info) {
 // inactive - in other words, ensures the high-priority 
 // threads actually finish their work before letting 
 // lower-priority threads do anything. 
-TT_THREAD * __tt_find_next_thread (void) {
+volatile TT_THREAD * __tt_find_next_thread (void) {
 	// tt_debug ();
-	TT_THREAD * p = tt_first_thread;
+	volatile TT_THREAD * p = tt_first_thread;
 	uint32_t now = tt_get_tick_count (); 
 	TT_DEBUG_VALUE ("Current Thread Priority", tt_current_thread->priority); 
 	TT_DEBUG_VALUE ("Current Thread Ready At", tt_current_thread->ready_at); 
@@ -402,9 +402,9 @@ TT_THREAD * __tt_find_next_thread (void) {
 			// Finally (3rd), if we still did not find a thread to execute, then the 
 			// last state is to search starting from thread 6, priority just below us, 
 			// and just find the highest-priority one. 
-			TT_THREAD * first_within_priority = p; 
-			TT_THREAD * first_next_priority; 
-			TT_THREAD * q = tt_current_thread->next_thread; 
+			volatile TT_THREAD * first_within_priority = p; 
+			volatile TT_THREAD * first_next_priority; 
+			volatile TT_THREAD * q = tt_current_thread->next_thread; 
 			// Finally, when we find a thread we think should be executed next, but it is 
 			// waiting for a shared resource, then we should look at what thread is taking 
 			// up the shared resource, and try to execute that thread; if that thread is 
@@ -413,7 +413,7 @@ TT_THREAD * __tt_find_next_thread (void) {
 			// And if we end up returning to the original thread in a circle, then we 
 			// have a problem, which could be a system failure; we could reset in that 
 			// case. Or do some other behavior, depending on the TT_ONMUTEXDEADLOCK() macro. 
-			TT_THREAD * r = 0; 
+			volatile TT_THREAD * r = 0; 
 			// Search threads tt_current_thread+1 to the next priority 
 			// (in the example above, this would just be thread 5): 
 			TT_DEBUG_POINT (); 
@@ -482,7 +482,7 @@ TT_THREAD * __tt_find_next_thread (void) {
 		if (p->ready_at <= now) { 
 			TT_DEBUG_POINT (); 
 			// This is the next thread to execute. 
-			TT_THREAD * r = p; 
+			volatile TT_THREAD * r = p; 
 			TT_DEBUG_VALUE ("Waiting For", r->waiting_for); 
 			while (r && r->waiting_for) 
 				r = r->waiting_for->taken_by; 
@@ -555,14 +555,14 @@ void tt_sleep_until (uint32_t tick_count) {
 	tt_yield (); 
 } 
 
-TT_THREAD * tt_get_current_thread (void) {
+volatile TT_THREAD * tt_get_current_thread (void) {
 	return tt_current_thread;
 }
 
-void tt_suspend_thread (TT_THREAD * thread_info) {
+void tt_suspend_thread (volatile TT_THREAD * thread_info) {
 	thread_info->ready_at = TT_READY_SUSPENDED;
 }
-void tt_wake_thread (TT_THREAD * thread_info) {
+void tt_wake_thread (volatile TT_THREAD * thread_info) {
 	thread_info->ready_at = 0; // Ready immediately.
 	// If the thread we're waking up is of higher priority than us,
 	// then we schedule it to run right away:
@@ -575,7 +575,7 @@ void tt_suspend_me (void) {
 	tt_yield ();
 }
 
-void tt_suspend_until_threads_change (TT_THREAD * thread_info) {
+void tt_suspend_until_threads_change (volatile TT_THREAD * thread_info) {
 	thread_info->ready_at = TT_READY_ONTHREADEXIT;
 }
 
@@ -584,7 +584,7 @@ void tt_suspend_me_until_threads_change (void) {
 	tt_yield ();
 }
 
-void tt_mutex_lock (TT_MUTEX * mutex) { 
+void tt_mutex_lock (volatile TT_MUTEX * mutex) { 
 	TT_CLI (); 
 	if (mutex->taken_by) { 
 		// Resource already taken; we need to wait for it: 
@@ -593,7 +593,7 @@ void tt_mutex_lock (TT_MUTEX * mutex) {
 	} else mutex->taken_by = tt_current_thread; 
 	TT_STI (); 
 } 
-void tt_mutex_unlock (TT_MUTEX * mutex) { 
+void tt_mutex_unlock (volatile TT_MUTEX * mutex) { 
 	TT_CLI (); 
 	TT_THREAD * p = tt_first_thread; 
 	while (p) { 
@@ -615,12 +615,12 @@ void tt_mutex_unlock (TT_MUTEX * mutex) {
 } 
 
 void tt_wait_for_all_finish (void) {
-	TT_THREAD * me = tt_get_current_thread ();
+	volatile TT_THREAD * me = tt_get_current_thread ();
 	TT_THREAD * idler = &tt_obj_idle_thread;
 	size_t other_threads = 0;
 	do {
 		tt_suspend_me_until_threads_change ();
-		TT_THREAD * p = tt_first_thread;
+		volatile TT_THREAD * p = tt_first_thread;
 		other_threads = 0;
 		while (p) {
 			if (p != me && p != idler)
