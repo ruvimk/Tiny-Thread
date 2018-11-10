@@ -532,6 +532,7 @@ void tt_yield (void) {
 	TT_CLI ();
 	TT_RESET_CLOCK ();
 	TT_SAVE ();
+	PORTC ^= BIT (6); 
 	TT_ONTHREADYIELD (); 
 	TT_ONTASKSWITCH (); 
 #if WIN32 
@@ -542,6 +543,7 @@ void tt_yield (void) {
 #endif 
 #endif 
 	__tt_task_switch ();
+	PORTC ^= BIT (6); 
 	TT_RESTORE ();
 	TT_STI ();
 }
@@ -647,7 +649,7 @@ void tt_exit_thread (void) {
 #ifdef __AVR__
 ISR(TIMER0_OVF_vect, ISR_NAKED) {
 	TT_SAVE ();
-	PORTE |= BIT (5);
+	PORTC ^= BIT (6); 
 	tt_tick_count += BIT (8);
 	TT_ONTIMERUP (); 
 	TT_ONTASKSWITCH (); 
@@ -659,7 +661,7 @@ ISR(TIMER0_OVF_vect, ISR_NAKED) {
 #endif 
 #endif 
 	__tt_task_switch ();
-	PORTE &= ~BIT (5);
+	PORTC ^= BIT (6); 
 	TT_RESTORE ();
 	TT_IRET ();
 }
