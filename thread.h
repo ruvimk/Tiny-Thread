@@ -647,7 +647,6 @@ void tt_exit_thread (void) {
 #ifdef __AVR__
 ISR(TIMER0_OVF_vect, ISR_NAKED) {
 	TT_SAVE ();
-	PORTE |= BIT (5);
 	tt_tick_count += BIT (8);
 	TT_ONTIMERUP (); 
 	TT_ONTASKSWITCH (); 
@@ -659,7 +658,6 @@ ISR(TIMER0_OVF_vect, ISR_NAKED) {
 #endif 
 #endif 
 	__tt_task_switch ();
-	PORTE &= ~BIT (5);
 	TT_RESTORE ();
 	TT_IRET ();
 }
