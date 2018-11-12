@@ -530,7 +530,6 @@ void __tt_task_switch (void) {
 
 void tt_yield (void) {
 	TT_CLI ();
-	TT_RESET_CLOCK ();
 	TT_SAVE ();
 	TT_ONTHREADYIELD (); 
 	TT_ONTASKSWITCH (); 
