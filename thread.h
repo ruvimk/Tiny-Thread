@@ -94,7 +94,7 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 // This number is the maximum tick count that should be achieved before wrap-around occurs. 
 // Keep it below -2 (i.e., ~((TICK_COUNT) 1)) in order to prevent bad behavior. 
 // Without a check for MAX_CLOCK, the UI freezes after a certain point. 
-#define TT_CLOCK_RANGE (((TICK_COUNT) 1) << 20) 
+#define TT_CLOCK_RANGE (((TICK_COUNT) 1) << 19) 
 //#define TT_CLOCK_RANGE ((TICK_COUNT) -3) 
 #endif 
 
@@ -544,7 +544,7 @@ void __tt_task_switch (void) {
 void tt_yield (void) {
 	TT_CLI ();
 	TT_SAVE ();
-	PORTC ^= BIT (6); 
+	PORTC ^= BIT (5); 
 	TT_ONTHREADYIELD (); 
 	TT_ONTASKSWITCH (); 
 #if WIN32 
@@ -555,7 +555,7 @@ void tt_yield (void) {
 #endif 
 #endif 
 	__tt_task_switch ();
-	PORTC ^= BIT (6); 
+	PORTC ^= BIT (5); 
 	TT_RESTORE ();
 	TT_STI ();
 }
@@ -573,9 +573,6 @@ void tt_sleep_ms (uint32_t milliseconds) {
 	tt_sleep_ticks (tt_ms_to_ticks (milliseconds)); 
 } 
 void tt_sleep_until (TICK_COUNT tick_count) { 
-	while (tick_count >= TT_CLOCK_RANGE - tt_us_to_ticks (TT_HW_CLOCK_PERIOD) * 1) { 
-		tick_count -= TT_CLOCK_RANGE; 
-	} 
 	tt_current_thread->ready_at = tick_count; 
 	tt_yield (); 
 } 
@@ -664,9 +661,23 @@ void tt_exit_thread (void) {
 ISR(TIMER0_OVF_vect, ISR_NAKED) {
 	TT_SAVE ();
 	PORTC ^= BIT (6); 
+	TICK_COUNT before = tt_tick_count; 
 	tt_tick_count += BIT (8);
-	while (tt_tick_count >= TT_CLOCK_RANGE) { 
+	if (tt_tick_count >= TT_CLOCK_RANGE) { 
+		// Wrap-around! First, wrap the clock. 
 		tt_tick_count -= TT_CLOCK_RANGE; 
+		// Next, wrap all the threads' ready_at time by the same amount. 
+		PORTC |= BIT (4); 
+		volatile TT_THREAD * p = tt_first_thread; 
+		while (p) { 
+			if (p->ready_at != TT_READY_SUSPENDED) { 
+				while (p->ready_at >= before) { 
+					p->ready_at -= TT_CLOCK_RANGE; 
+					PORTC &= ~BIT (4); 
+				} 
+			} 
+			p = p->next_thread; 
+		} 
 	} 
 	TT_ONTIMERUP (); 
 	TT_ONTASKSWITCH (); 
