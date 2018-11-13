@@ -94,7 +94,7 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 // This number is the maximum tick count that should be achieved before wrap-around occurs. 
 // Keep it below -2 (i.e., ~((TICK_COUNT) 1)) in order to prevent bad behavior. 
 // Without a check for MAX_CLOCK, the UI freezes after a certain point. 
-#define TT_CLOCK_RANGE (((TICK_COUNT) 1) << 19) 
+#define TT_CLOCK_RANGE (((TICK_COUNT) 1) << 20) 
 //#define TT_CLOCK_RANGE ((TICK_COUNT) -3) 
 #endif 
 
