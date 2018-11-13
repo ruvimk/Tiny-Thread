@@ -98,6 +98,10 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 //#define TT_CLOCK_RANGE ((TICK_COUNT) -3) 
 #endif 
 
+// Converting from microseconds and milliseconds to ticks. 
+#define tt_us_to_ticks(us) ((TICK_COUNT) us * 256 / TT_HW_CLOCK_PERIOD) 
+#define tt_ms_to_ticks(ms) (tt_us_to_ticks ((TICK_COUNT) ms * 1000)) 
+
 // Brief descriptions of sizes:
 
 // TT_STACK_PROGRAM_OVERHEAD: extra space on the stack for tt_exit_thread,
@@ -113,9 +117,17 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 	#ifdef WIN32
 		// 32-bit Windows
 		#include <windows.h> 
+		
+		volatile TICK_COUNT tt_tick_count;
 		TICK_COUNT tt_get_tick_count (void) { 
-			return GetTickCount (); // Just call the Win32 API function. 
+			return tt_tick_count; 
 		} 
+		
+		// And a debug dummy port: 
+		uint8_t PORTC; 
+		
+		// Dummy function to act as an ISR for the tests (the ISR increments the tick count, overflow, etc., while the yield () does not): 
+		void tt_dummy_isr (void); 
 		
 		#define TT_STACK_PROGRAM_OVERHEAD (3 * sizeof (void *))
 		#define TT_REGISTER_COUNT 8
@@ -147,6 +159,7 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 		#if DEBUG 
 			#define TT_DEBUG_POINT() printf ("%s:%d: %s ()\n", __FILE__, __LINE__, __FUNCTION__) 
 			#define TT_DEBUG_VALUE(label, x) printf ("%s:%d: %s (): %s = %x\n", __FILE__, __LINE__, __FUNCTION__, label, x) 
+			#define TT_DEBUG_USE_PRINTF 1 
 		#endif 
 	#endif 
 	#define TT_RESET_CLOCK()
@@ -201,6 +214,10 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define TT_DEBUG_VALUE(label, x) ; 
 #endif 
 
+#ifndef TT_DEBUG_USE_PRINTF 
+#define TT_DEBUG_USE_PRINTF 0 
+#endif 
+
 #define TT_SAVE() TT_SAVE_ALL ()
 #define TT_RESTORE() TT_RESTORE_ALL ()
 
@@ -235,8 +252,11 @@ volatile uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE];
 	__declspec (naked)
 	void __tt_just_hang (void) {
 		while (1) {
+		#if DEBUG 
+			printf ("IDLE: Sleeping 50 ms\n"); 
+		#endif 
 			Sleep (50);
-			tt_yield ();
+			tt_dummy_isr (); 
 		}
 		printf ("Idle F\n");
 	}
@@ -261,6 +281,7 @@ void tt_init (void) {
 			sizeof (tt_idle_thread_stack), __tt_just_hang);
 	tt_obj_idle_thread.priority = TT_PRIORITY_BOTTOM;
 	tt_obj_idle_thread.ready_at = 0;
+	tt_obj_idle_thread.waiting_for = 0;
 	tt_obj_idle_thread.next_thread = 0;
 	tt_add_thread (&tt_obj_idle_thread);
 	// On hardware systems, also do: set up clock, interrupt, and sleep mode.
@@ -392,7 +413,6 @@ void tt_remove_thread (volatile TT_THREAD * thread_info) {
 // threads actually finish their work before letting 
 // lower-priority threads do anything. 
 volatile TT_THREAD * __tt_find_next_thread (void) {
-	// tt_debug ();
 	volatile TT_THREAD * p = tt_first_thread;
 	TICK_COUNT now = tt_get_tick_count (); 
 	TT_DEBUG_VALUE ("Current Thread Priority", tt_current_thread->priority); 
@@ -439,7 +459,7 @@ volatile TT_THREAD * __tt_find_next_thread (void) {
 			// Search threads tt_current_thread+1 to the next priority 
 			// (in the example above, this would just be thread 5): 
 			TT_DEBUG_POINT (); 
-			TT_DEBUG_VALUE ("Priority", q->priority); 
+			if (q) TT_DEBUG_VALUE ("Priority", q->priority); 
 			while (q && q->priority == tt_current_thread->priority) { 
 				TT_DEBUG_POINT (); 
 				TT_DEBUG_VALUE ("Ready At", q->ready_at); 
@@ -541,27 +561,6 @@ void __tt_task_switch (void) {
 	TT_RET ();
 }
 
-void tt_yield (void) {
-	TT_CLI ();
-	TT_SAVE ();
-	PORTC ^= BIT (5); 
-	TT_ONTHREADYIELD (); 
-	TT_ONTASKSWITCH (); 
-#if WIN32 
-#ifdef DEBUG 
-#if DEBUG 
-	tt_debug (); 
-#endif 
-#endif 
-#endif 
-	__tt_task_switch ();
-	PORTC ^= BIT (5); 
-	TT_RESTORE ();
-	TT_STI ();
-}
-
-#define tt_us_to_ticks(us) ((TICK_COUNT) us * 256 / TT_HW_CLOCK_PERIOD) 
-#define tt_ms_to_ticks(ms) (tt_us_to_ticks ((TICK_COUNT) ms * 1000)) 
 void tt_sleep_ticks (TICK_COUNT ticks) {
 	tt_sleep_until (tt_get_tick_count () + ticks); 
 }
@@ -657,43 +656,125 @@ void tt_exit_thread (void) {
 	tt_suspend_me ();
 }
 
-#ifdef __AVR__
-ISR(TIMER0_OVF_vect, ISR_NAKED) {
-	TT_SAVE ();
-	PORTC ^= BIT (6); 
+void __tt_check_clock_overflow (void) { 
 	TICK_COUNT before = tt_tick_count; 
+#ifdef WIN32 
+	static prev_add = 0; 
+#if TT_DEBUG_USE_PRINTF 
+	printf ("ISR: prev_add: %d; current GetTickCount (): %x;\n", prev_add, GetTickCount ()); 
+#endif 
+	TICK_COUNT now_count = GetTickCount (); 
+	if (now_count != prev_add) { 
+		if (prev_add) { 
+			TICK_COUNT difference = now_count - prev_add; 
+		#if TT_DEBUG_USE_PRINTF 
+			printf ("ISR: Incrementing tick count by %x ms ... \n", difference); 
+		#endif 
+			tt_tick_count += tt_ms_to_ticks (difference); 
+		} else { 
+		#if TT_DEBUG_USE_PRINTF 
+			printf ("ISR: Incrementing tick count by 1 ms ... \n"); 
+		#endif 
+			tt_tick_count += tt_ms_to_ticks (1); 
+		} 
+		prev_add = now_count; 
+	} 
+#else 
 	tt_tick_count += BIT (8);
+#endif 
+#if TT_DEBUG_USE_PRINTF 
+	printf ("ISR: Tick count before: %x; now: %x;\n", before, tt_tick_count); 
+#endif 
 	if (tt_tick_count >= TT_CLOCK_RANGE) { 
+	#if TT_DEBUG_USE_PRINTF 
+		printf ("ISR: Timer overflow: %x >= %x. Subtracting clock range, %x\n", tt_tick_count, TT_CLOCK_RANGE, TT_CLOCK_RANGE); 
+	#endif 
 		// Wrap-around! First, wrap the clock. 
 		tt_tick_count -= TT_CLOCK_RANGE; 
 		// Next, wrap all the threads' ready_at time by the same amount. 
+	#if TT_DEBUG_USE_PRINTF 
+		printf ("Clock Now: %x\n", tt_tick_count); 
+	#endif 
 		PORTC |= BIT (4); 
 		volatile TT_THREAD * p = tt_first_thread; 
 		while (p) { 
-			if (p->ready_at != TT_READY_SUSPENDED) { 
-				while (p->ready_at >= before) { 
-					p->ready_at -= TT_CLOCK_RANGE; 
+		#if TT_DEBUG_USE_PRINTF 
+			printf ("Thread; priority: %x\n", p->priority); 
+		#endif 
+			if (p->ready_at != TT_READY_SUSPENDED && p->ready_at != TT_READY_ONTHREADEXIT) { 
+				if (p->ready_at >= before) { 
+					if (p->ready_at >= TT_CLOCK_RANGE) { 
+					#if TT_DEBUG_USE_PRINTF 
+						printf ("\t%x >= %x, so subtracting %x ... \n", p->ready_at, before, TT_CLOCK_RANGE); 
+					#endif 
+						p->ready_at -= TT_CLOCK_RANGE; 
+					} else { 
+					#if TT_DEBUG_USE_PRINTF 
+						printf ("\t%x >= %x, but %x < the clock range of %x, so? Resuming thread NOW! \n", p->ready_at, before, p->ready_at, TT_CLOCK_RANGE); 
+					#endif 
+						p->ready_at = 0; 
+					} 
 					PORTC &= ~BIT (4); 
 				} 
 			} 
 			p = p->next_thread; 
 		} 
 	} 
-	TT_ONTIMERUP (); 
+} 
+
+void tt_yield (void) {
+	TT_CLI ();
+	TT_SAVE ();
+	PORTC ^= BIT (5); 
+	TT_ONTHREADYIELD (); 
 	TT_ONTASKSWITCH (); 
-#if WIN32 
-#ifdef DEBUG 
-#if DEBUG 
+#if TT_DEBUG_USE_PRINTF 
 	tt_debug (); 
 #endif 
+	__tt_task_switch ();
+	PORTC ^= BIT (5); 
+	TT_RESTORE ();
+	TT_STI ();
+}
+
+#ifdef __AVR__
+ISR(TIMER0_OVF_vect, ISR_NAKED) {
+#else 
+// On Win32, etc., for testing purposes, just call this dummy ISR. 
+#ifdef __DMC__
+	__declspec(naked)
+#else
+	__attribute__ ((naked))
+#endif
+void tt_dummy_isr (void) { 
+#endif
+	TT_SAVE ();
+#if TT_DEBUG_USE_PRINTF 
+	static void * _s; 
+	asm mov [_s], esp 
+	printf ("ISR: Saved. ESP = %x\n", _s); 
 #endif 
+	PORTC ^= BIT (6); 
+	__tt_check_clock_overflow (); 
+	TT_ONTIMERUP (); 
+	TT_ONTASKSWITCH (); 
+#if TT_DEBUG_USE_PRINTF 
+	tt_debug (); 
 #endif 
 	__tt_task_switch ();
+#if TT_DEBUG_USE_PRINTF 
+	asm mov [_s], esp 
+	printf ("ISR: Task switched. ESP = %x\n", _s); 
+#endif 
 	PORTC ^= BIT (6); 
 	TT_RESTORE ();
 	TT_IRET ();
 }
-#endif
+#ifdef ____DUMMY_BRACE_CHECK___SHOULD_EVAL_TO_FALSE_____ // This is just to prevent Notepad++ syntax 
+// highlighting from being confused about the mismatched braces. Ruvim uses VI(M) on Linux, but when 
+// testing on Windows, he uses Notepad++ to edit the file and the light-weight Digital Mars C compiler. 
+} 
+#endif 
 
 
 

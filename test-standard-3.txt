@@ -1,0 +1,22 @@
+Time: 0
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Thread 1: Blink ON
+Thread 1: Blink OFF
+Time: ~10 s
