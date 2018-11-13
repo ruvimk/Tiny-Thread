@@ -9,7 +9,7 @@ typedef unsigned char uint8_t;
 typedef unsigned short size_t; 
 #endif 
 
-typedef uint16_t TICK_COUNT; 
+typedef uint32_t TICK_COUNT; 
 
 struct TT_THREAD_STRUCT; 
 struct TT_MUTEX_STRUCT; 
@@ -92,9 +92,10 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 
 #ifndef TT_CLOCK_RANGE 
 // This number is the maximum tick count that should be achieved before wrap-around occurs. 
-// Keep it below -2 (i.e., ~((uint32_t) 1)) in order to prevent bad behavior. 
+// Keep it below -2 (i.e., ~((TICK_COUNT) 1)) in order to prevent bad behavior. 
 // Without a check for MAX_CLOCK, the UI freezes after a certain point. 
-#define TT_CLOCK_RANGE (1<<14) 
+#define TT_CLOCK_RANGE (((TICK_COUNT) 1) << 20) 
+//#define TT_CLOCK_RANGE ((TICK_COUNT) -3) 
 #endif 
 
 // Brief descriptions of sizes:
@@ -572,7 +573,7 @@ void tt_sleep_ms (uint32_t milliseconds) {
 	tt_sleep_ticks (tt_ms_to_ticks (milliseconds)); 
 } 
 void tt_sleep_until (TICK_COUNT tick_count) { 
-	while (tick_count > TT_CLOCK_RANGE - tt_us_to_ticks (TT_HW_CLOCK_PERIOD) * 1) { 
+	while (tick_count >= TT_CLOCK_RANGE - tt_us_to_ticks (TT_HW_CLOCK_PERIOD) * 1) { 
 		tick_count -= TT_CLOCK_RANGE; 
 	} 
 	tt_current_thread->ready_at = tick_count; 
