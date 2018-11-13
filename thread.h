@@ -9,6 +9,8 @@ typedef unsigned char uint8_t;
 typedef unsigned short size_t; 
 #endif 
 
+typedef uint16_t TICK_COUNT; 
+
 struct TT_THREAD_STRUCT; 
 struct TT_MUTEX_STRUCT; 
 
@@ -16,7 +18,7 @@ struct TT_MUTEX_STRUCT;
 struct TT_THREAD_STRUCT {
 	volatile uint8_t * t_sp; // Stack Pointer.
 	size_t priority; // 0 is the highest priority.
-	volatile uint32_t ready_at; // Tick count at which this thread is ready.
+	volatile TICK_COUNT ready_at; // Tick count at which this thread is ready.
 	volatile struct TT_MUTEX_STRUCT * volatile waiting_for; 
 	volatile struct TT_THREAD_STRUCT * volatile next_thread; // Pointer to the next thread, or nullptr.
 };
@@ -36,7 +38,10 @@ volatile uint8_t * tt_prepare_stack (volatile uint8_t * stack_begin_address, // 
 						size_t stack_size_bytes, 
 						void * code_start_address); 
 void tt_yield (void); // Yield: let the next thread in the queue take over the CPU without suspending this thread. 
-void tt_sleep_ticks (uint32_t ticks); // Suspend this thread for 'ticks' TCNT0 clocks. 
+void tt_sleep_ticks (TICK_COUNT ticks); // Suspend this thread for 'ticks' TCNT0 clocks. 
+void tt_sleep_us (uint32_t microseconds); 
+void tt_sleep_ms (uint32_t milliseconds); 
+void tt_sleep_until (TICK_COUNT ticks); 
 volatile TT_THREAD * tt_get_current_thread (void); // Returns this thread's TT_THREAD *. 
 void tt_suspend_thread (volatile TT_THREAD * thread_info); // Suspends some thread indefinitely. 
 void tt_wake_thread (volatile TT_THREAD * thread_info); // Wakes up another thread. 
@@ -85,6 +90,13 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define TT_HW_CLOCK_PERIOD 128 
 #endif 
 
+#ifndef TT_CLOCK_RANGE 
+// This number is the maximum tick count that should be achieved before wrap-around occurs. 
+// Keep it below -2 (i.e., ~((uint32_t) 1)) in order to prevent bad behavior. 
+// Without a check for MAX_CLOCK, the UI freezes after a certain point. 
+#define TT_CLOCK_RANGE (1<<14) 
+#endif 
+
 // Brief descriptions of sizes:
 
 // TT_STACK_PROGRAM_OVERHEAD: extra space on the stack for tt_exit_thread,
@@ -100,7 +112,7 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 	#ifdef WIN32
 		// 32-bit Windows
 		#include <windows.h> 
-		uint32_t tt_get_tick_count (void) { 
+		TICK_COUNT tt_get_tick_count (void) { 
 			return GetTickCount (); // Just call the Win32 API function. 
 		} 
 		
@@ -146,8 +158,8 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 	#include <avr/io.h>
 	#include <avr/interrupt.h>
 	
-	volatile uint32_t tt_tick_count;
-	uint32_t tt_get_tick_count (void) {
+	volatile TICK_COUNT tt_tick_count;
+	TICK_COUNT tt_get_tick_count (void) {
 		return tt_tick_count + TCNT0;
 	}
 	#define TT_RESET_CLOCK() tt_tick_count += TCNT0; TCNT0 = 0
@@ -381,7 +393,7 @@ void tt_remove_thread (volatile TT_THREAD * thread_info) {
 volatile TT_THREAD * __tt_find_next_thread (void) {
 	// tt_debug ();
 	volatile TT_THREAD * p = tt_first_thread;
-	uint32_t now = tt_get_tick_count (); 
+	TICK_COUNT now = tt_get_tick_count (); 
 	TT_DEBUG_VALUE ("Current Thread Priority", tt_current_thread->priority); 
 	TT_DEBUG_VALUE ("Current Thread Ready At", tt_current_thread->ready_at); 
 	TT_DEBUG_VALUE ("Current Thread Waiting For", tt_current_thread->waiting_for); 
@@ -547,11 +559,10 @@ void tt_yield (void) {
 	TT_STI ();
 }
 
-#define tt_us_to_ticks(us) ((uint32_t) us * 256 / TT_HW_CLOCK_PERIOD) 
-#define tt_ms_to_ticks(ms) (tt_us_to_ticks ((uint32_t) ms * 1000)) 
-void tt_sleep_ticks (uint32_t ticks) {
-	tt_current_thread->ready_at = tt_get_tick_count () + ticks;
-	tt_yield ();
+#define tt_us_to_ticks(us) ((TICK_COUNT) us * 256 / TT_HW_CLOCK_PERIOD) 
+#define tt_ms_to_ticks(ms) (tt_us_to_ticks ((TICK_COUNT) ms * 1000)) 
+void tt_sleep_ticks (TICK_COUNT ticks) {
+	tt_sleep_until (tt_get_tick_count () + ticks); 
 }
 void tt_sleep_us (uint32_t microseconds) { 
 	// There are 256 ticks per every CLOCK_PERIOD microseconds: 
@@ -560,7 +571,10 @@ void tt_sleep_us (uint32_t microseconds) {
 void tt_sleep_ms (uint32_t milliseconds) { 
 	tt_sleep_ticks (tt_ms_to_ticks (milliseconds)); 
 } 
-void tt_sleep_until (uint32_t tick_count) { 
+void tt_sleep_until (TICK_COUNT tick_count) { 
+	while (tick_count > TT_CLOCK_RANGE - tt_us_to_ticks (TT_HW_CLOCK_PERIOD) * 1) { 
+		tick_count -= TT_CLOCK_RANGE; 
+	} 
 	tt_current_thread->ready_at = tick_count; 
 	tt_yield (); 
 } 
@@ -650,6 +664,9 @@ ISR(TIMER0_OVF_vect, ISR_NAKED) {
 	TT_SAVE ();
 	PORTC ^= BIT (6); 
 	tt_tick_count += BIT (8);
+	while (tt_tick_count >= TT_CLOCK_RANGE) { 
+		tt_tick_count -= TT_CLOCK_RANGE; 
+	} 
 	TT_ONTIMERUP (); 
 	TT_ONTASKSWITCH (); 
 #if WIN32 
