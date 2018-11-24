@@ -221,6 +221,8 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define TT_SAVE() TT_SAVE_ALL ()
 #define TT_RESTORE() TT_RESTORE_ALL ()
 
+#define TT_CRITICAL(code_block) {TT_CLI (); code_block; TT_STI ();} 
+
 #define TT_PRIORITY_TOP 0
 #define TT_PRIORITY_NORMAL 0x80
 #define TT_PRIORITY_BOTTOM 0xFF
@@ -562,14 +564,20 @@ void __tt_task_switch (void) {
 }
 
 void tt_sleep_ticks (TICK_COUNT ticks) {
+TT_CRITICAL ({ 
 	tt_sleep_until (tt_get_tick_count () + ticks); 
+}); 
 }
 void tt_sleep_us (uint32_t microseconds) { 
+TT_CRITICAL ({ 
 	// There are 256 ticks per every CLOCK_PERIOD microseconds: 
 	tt_sleep_ticks (tt_us_to_ticks (microseconds)); 
+}); 
 } 
 void tt_sleep_ms (uint32_t milliseconds) { 
+TT_CRITICAL ({ 
 	tt_sleep_ticks (tt_ms_to_ticks (milliseconds)); 
+}); 
 } 
 void tt_sleep_until (TICK_COUNT tick_count) { 
 	tt_current_thread->ready_at = tick_count; 
