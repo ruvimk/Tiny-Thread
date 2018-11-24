@@ -614,16 +614,16 @@ void tt_suspend_me_until_threads_change (void) {
 }
 
 void tt_mutex_lock (volatile TT_MUTEX * mutex) { 
-	TT_CLI (); 
+TT_CRITICAL ({ 
 	if (mutex->taken_by) { 
 		// Resource already taken; we need to wait for it: 
 		tt_current_thread->waiting_for = mutex; 
 		tt_yield (); 
 	} else mutex->taken_by = tt_current_thread; 
-	TT_STI (); 
+}); 
 } 
 void tt_mutex_unlock (volatile TT_MUTEX * mutex) { 
-	TT_CLI (); 
+TT_CRITICAL ({ 
 	volatile TT_THREAD * p = tt_first_thread; 
 	while (p) { 
 		if (p->waiting_for == mutex) { 
@@ -640,7 +640,7 @@ void tt_mutex_unlock (volatile TT_MUTEX * mutex) {
 	} 
 	// If no threads found waiting for this mutex, just set its "taken by" attribute to 0: 
 	mutex->taken_by = 0; 
-	TT_STI (); 
+}); 
 } 
 
 void tt_wait_for_all_finish (void) {
@@ -731,7 +731,7 @@ void __tt_check_clock_overflow (void) {
 } 
 
 void tt_yield (void) {
-	TT_CLI ();
+TT_CRITICAL ({ 
 	TT_SAVE ();
 	PORTC ^= BIT (5); 
 	TT_ONTHREADYIELD (); 
@@ -742,7 +742,7 @@ void tt_yield (void) {
 	__tt_task_switch ();
 	PORTC ^= BIT (5); 
 	TT_RESTORE ();
-	TT_STI ();
+}); 
 }
 
 #ifdef __AVR__
