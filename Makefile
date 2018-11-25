@@ -1,18 +1,20 @@
 
-all: 1 2 3 
+all: 1 2 3 4
 
 debug: CFLAGS += -D 
-debug: 1 2 3 
+debug: 1 2 3 4
 
 CC = dmc $(CFLAGS) 
 
 .phony: 1 
 .phony: 2 
 .phony: 3 
+.phony: 4 
 
 1 : test.exe 
 2 : test2.exe 
 3 : test3.exe 
+4 : test4.exe 
 
 test.exe : test.c thread.h 
 	$(CC) $(CFLAGS) test
@@ -23,6 +25,9 @@ test2.exe : test2.c thread.h
 test3.exe : test3.c thread.h 
 	$(CC) $(CFLAGS) test3
 	objconv -fnasm test3.obj
+test4.exe : test4.c thread.h 
+	$(CC) $(CFLAGS) test4
+	objconv -fnasm test4.obj
 
 .phony: clean 
 clean: 
