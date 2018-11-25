@@ -34,6 +34,8 @@ goto done
 :ok4 
 REM Can put more test cases here ... 
 
+echo. 
+
 echo All tests passed! 
 echo. 
 
