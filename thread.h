@@ -486,7 +486,7 @@ volatile TT_THREAD * __tt_find_next_thread (void) {
 					TT_DEBUG_VALUE ("Waiting For", r->waiting_for); 
 					while (r && r->waiting_for) 
 						r = r->waiting_for->taken_by; 
-					if (r) return r; 
+					if (r && r->ready_at <= now) return r; 
 					TT_DEBUG_POINT (); 
 				} 
 				q = q->next_thread; 
@@ -507,7 +507,7 @@ volatile TT_THREAD * __tt_find_next_thread (void) {
 					TT_DEBUG_VALUE ("Waiting For", r->waiting_for); 
 					while (r && r->waiting_for) 
 						r = r->waiting_for->taken_by; 
-					if (r) return r; 
+					if (r && r->ready_at <= now) return r; 
 					TT_DEBUG_POINT (); 
 				} 
 				if (q == tt_current_thread) break; // Should end on current thread. 
@@ -526,7 +526,7 @@ volatile TT_THREAD * __tt_find_next_thread (void) {
 					TT_DEBUG_VALUE ("Waiting For", r->waiting_for); 
 					while (r && r->waiting_for) 
 						r = r->waiting_for->taken_by; 
-					if (r) return r; 
+					if (r && r->ready_at <= now) return r; 
 					TT_DEBUG_POINT (); 
 				} 
 				q = q->next_thread; 
@@ -545,7 +545,7 @@ volatile TT_THREAD * __tt_find_next_thread (void) {
 			TT_DEBUG_VALUE ("Waiting For", r->waiting_for); 
 			while (r && r->waiting_for) 
 				r = r->waiting_for->taken_by; 
-			if (r) return r; 
+			if (r && r->ready_at <= now) return r; 
 			TT_DEBUG_POINT (); 
 		} 
 		TT_DEBUG_POINT (); 
