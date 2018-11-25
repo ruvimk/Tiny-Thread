@@ -90,17 +90,18 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define TT_HW_CLOCK_PERIOD 128 
 #endif 
 
+// Converting from microseconds and milliseconds to ticks. 
+#define tt_us_to_ticks(us) ((TICK_COUNT) us * 256 / TT_HW_CLOCK_PERIOD) 
+#define tt_ms_to_ticks(ms) (tt_us_to_ticks ((TICK_COUNT) ms * 1000)) 
+
 #ifndef TT_CLOCK_RANGE 
 // This number is the maximum tick count that should be achieved before wrap-around occurs. 
 // Keep it below -2 (i.e., ~((TICK_COUNT) 1)) in order to prevent bad behavior. 
 // Without a check for MAX_CLOCK, the UI freezes after a certain point. 
-#define TT_CLOCK_RANGE (((TICK_COUNT) 1) << 20) 
-//#define TT_CLOCK_RANGE ((TICK_COUNT) -3) 
+// Here, we leave 60 seconds of padding, in case the program wants to sleep () for 
+// up to a minute past the edge of the clock (tick count) wrap-around. 
+#define TT_CLOCK_RANGE (((TICK_COUNT) -3) - tt_ms_to_ticks (60000)) 
 #endif 
-
-// Converting from microseconds and milliseconds to ticks. 
-#define tt_us_to_ticks(us) ((TICK_COUNT) us * 256 / TT_HW_CLOCK_PERIOD) 
-#define tt_ms_to_ticks(ms) (tt_us_to_ticks ((TICK_COUNT) ms * 1000)) 
 
 // Brief descriptions of sizes:
 
