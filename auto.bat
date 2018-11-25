@@ -1,5 +1,9 @@
 @echo off 
 make 
+echo Date and time of test: 
+date /t 
+time /t 
+echo. 
 echo Running test 1 ... 
 test > test-result-1.txt 
 cmp test-result-1.txt test-standard-1.txt
@@ -29,5 +33,8 @@ echo Test Failed! (4)
 goto done 
 :ok4 
 REM Can put more test cases here ... 
+
+echo All tests passed! 
+echo. 
 
 :done 
