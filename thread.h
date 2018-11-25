@@ -79,6 +79,21 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 #define TT_ONTASKSWITCH() ; 
 #endif 
 
+// On task switch begin: executed either at the very beginning of an ISR (immediately following TT_SAVE ()), or at the very beginning of tt_yield (). 
+#ifndef TT_ONSWITCHBEGIN 
+#define TT_ONSWITCHBEGIN() ; 
+#endif 
+
+// On task switch end: executed immediately before returning from an ISR (just before TT_RESTORE ()), or from tt_yield (). 
+#ifndef TT_ONSWITCHEND 
+#define TT_ONSWITCHEND() ; 
+#endif 
+
+// On idle thread: continuously executed statement inside the idle thread. Useful for profiling how much of the time the CPU is spending in idle mode. 
+#ifndef TT_ONIDLE 
+#define TT_ONIDLE() ; 
+#endif 
+
 
 #ifndef BIT
 #define BIT(n) (1<<n)
@@ -123,9 +138,6 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 		TICK_COUNT tt_get_tick_count (void) { 
 			return tt_tick_count; 
 		} 
-		
-		// And a debug dummy port: 
-		uint8_t PORTC; 
 		
 		// Dummy function to act as an ISR for the tests (the ISR increments the tick count, overflow, etc., while the yield () does not): 
 		void tt_dummy_isr (void); 
@@ -255,6 +267,7 @@ volatile uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE];
 	__declspec (naked)
 	void __tt_just_hang (void) {
 		while (1) {
+			TT_ONIDLE (); 
 		#if DEBUG 
 			printf ("IDLE: Sleeping 50 ms\n"); 
 		#endif 
@@ -267,6 +280,7 @@ volatile uint8_t tt_idle_thread_stack [TT_MIN_STACK_SIZE];
 	__attribute__ ((naked))
 	void __tt_just_hang (void) {
 		while (1) {
+			TT_ONIDLE (); 
 			TT_SLEEP ();
 		}
 	}
@@ -704,7 +718,6 @@ void __tt_check_clock_overflow (void) {
 	#if TT_DEBUG_USE_PRINTF 
 		printf ("Clock Now: %x\n", tt_tick_count); 
 	#endif 
-		PORTC |= BIT (4); 
 		volatile TT_THREAD * p = tt_first_thread; 
 		while (p) { 
 		#if TT_DEBUG_USE_PRINTF 
@@ -723,7 +736,6 @@ void __tt_check_clock_overflow (void) {
 					#endif 
 						p->ready_at = 0; 
 					} 
-					PORTC &= ~BIT (4); 
 				} 
 			} 
 			p = p->next_thread; 
@@ -734,14 +746,14 @@ void __tt_check_clock_overflow (void) {
 void tt_yield (void) {
 TT_CRITICAL ({ 
 	TT_SAVE ();
-	PORTC ^= BIT (5); 
+	TT_ONSWITCHBEGIN (); 
 	TT_ONTHREADYIELD (); 
 	TT_ONTASKSWITCH (); 
 #if TT_DEBUG_USE_PRINTF 
 	tt_debug (); 
 #endif 
 	__tt_task_switch ();
-	PORTC ^= BIT (5); 
+	TT_ONSWITCHEND (); 
 	TT_RESTORE ();
 }); 
 }
@@ -758,12 +770,12 @@ ISR(TIMER0_OVF_vect, ISR_NAKED) {
 void tt_dummy_isr (void) { 
 #endif
 	TT_SAVE ();
+	TT_ONSWITCHBEGIN (); 
 #if TT_DEBUG_USE_PRINTF 
 	static void * _s; 
 	asm mov [_s], esp 
 	printf ("ISR: Saved. ESP = %x\n", _s); 
 #endif 
-	PORTC ^= BIT (6); 
 	__tt_check_clock_overflow (); 
 	TT_ONTIMERUP (); 
 	TT_ONTASKSWITCH (); 
@@ -775,7 +787,7 @@ void tt_dummy_isr (void) {
 	asm mov [_s], esp 
 	printf ("ISR: Task switched. ESP = %x\n", _s); 
 #endif 
-	PORTC ^= BIT (6); 
+	TT_ONSWITCHEND (); 
 	TT_RESTORE ();
 	TT_IRET ();
 }
