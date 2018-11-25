@@ -749,9 +749,6 @@ TT_CRITICAL ({
 	TT_ONSWITCHBEGIN (); 
 	TT_ONTHREADYIELD (); 
 	TT_ONTASKSWITCH (); 
-#if TT_DEBUG_USE_PRINTF 
-	tt_debug (); 
-#endif 
 	__tt_task_switch ();
 	TT_ONSWITCHEND (); 
 	TT_RESTORE ();
