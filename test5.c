@@ -47,7 +47,7 @@ void test2 () {
 	} 
 	DWORD ms2 = GetTickCount (); 
 	diff = ms2 - ms0; 
-	printf ("\t\tThread 2: tick count: %d, clock range: %d, clock wraps: %d; our job is done, so we're exiting the thread! \n", diff / 1000, tt_get_tick_count (), TT_CLOCK_RANGE, tt_clock_wrap_count); 
+	printf ("\t\tThread 2: tick count: %d, clock range: %d, clock wraps: %d; our job is done, so we're exiting the thread! \n", tt_get_tick_count (), TT_CLOCK_RANGE, tt_clock_wrap_count); 
 } 
 
 int main (int argc, char * argv []) { 
