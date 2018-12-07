@@ -301,6 +301,8 @@ void tt_init (void) {
 	tt_obj_idle_thread.ready_at = 0;
 	tt_obj_idle_thread.waiting_for = 0;
 	tt_obj_idle_thread.next_thread = 0;
+	tt_tick_count = 0; 
+	tt_clock_wrap_count = 0; 
 	tt_add_thread (&tt_obj_idle_thread);
 	// On hardware systems, also do: set up clock, interrupt, and sleep mode.
 #ifdef __AVR__
