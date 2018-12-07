@@ -134,6 +134,7 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 		// 32-bit Windows
 		#include <windows.h> 
 		
+		volatile uint8_t tt_clock_wrap_count; 
 		volatile TICK_COUNT tt_tick_count;
 		TICK_COUNT tt_get_tick_count (void) { 
 			return tt_tick_count; 
@@ -714,6 +715,7 @@ void __tt_check_clock_overflow (void) {
 	#endif 
 		// Wrap-around! First, wrap the clock. 
 		tt_tick_count -= TT_CLOCK_RANGE; 
+		tt_clock_wrap_count++; 
 		// Next, wrap all the threads' ready_at time by the same amount. 
 	#if TT_DEBUG_USE_PRINTF 
 		printf ("Clock Now: %x\n", tt_tick_count); 
