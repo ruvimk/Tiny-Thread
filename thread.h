@@ -740,6 +740,11 @@ void __tt_check_clock_overflow (void) {
 					#endif 
 						p->ready_at = 0; 
 					} 
+				} else if (p->ready_at < before) { 
+					#if TT_DEBUG_USE_PRINTF 
+						printf ("\t%x < %x (clock), so on wrap-around it should still be less than the clock; setting to 0! \n", p->ready_at, before); 
+					#endif 
+					p->ready_at = 0; 
 				} 
 			} 
 			p = p->next_thread; 
