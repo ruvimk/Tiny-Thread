@@ -186,6 +186,7 @@ void tt_exit_thread (void); // Exits this thread. Note: another way to exit a th
 	#include <avr/io.h>
 	#include <avr/interrupt.h>
 	
+	volatile uint8_t tt_clock_wrap_count; 
 	volatile TICK_COUNT tt_tick_count;
 	TICK_COUNT tt_get_tick_count (void) {
 		return tt_tick_count + TCNT0;
