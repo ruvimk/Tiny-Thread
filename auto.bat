@@ -32,6 +32,14 @@ if not errorlevel 1 goto ok4
 echo Test Failed! (4) 
 goto done 
 :ok4 
+echo Running test 5 ... 
+test5 > test-result-5.txt 
+cmp test-result-5.txt test-standard-5.txt 
+if not errorlevel 1 goto ok5 
+echo Test Failed! (5) 
+goto done 
+:ok5 
+
 REM Can put more test cases here ... 
 
 echo. 
