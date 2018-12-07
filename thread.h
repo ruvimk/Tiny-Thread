@@ -44,6 +44,8 @@ void tt_sleep_ms (uint32_t milliseconds);
 void tt_sleep_until (TICK_COUNT ticks); 
 volatile TT_THREAD * tt_get_current_thread (void); // Returns this thread's TT_THREAD *. 
 void tt_suspend_thread (volatile TT_THREAD * thread_info); // Suspends some thread indefinitely. 
+uint8_t tt_get_inherited_priority (volatile TT_THREAD * thread_info); 
+
 void tt_wake_thread (volatile TT_THREAD * thread_info); // Wakes up another thread. 
 void tt_suspend_me (void); // Suspends this thread indefinitely. 
 void tt_suspend_until_threads_change (volatile TT_THREAD * thread_info); // Suspends a thread until one of the other threads exit. 
@@ -609,7 +611,28 @@ volatile TT_THREAD * tt_get_current_thread (void) {
 
 void tt_suspend_thread (volatile TT_THREAD * thread_info) {
 	thread_info->ready_at = TT_READY_SUSPENDED;
-}
+} 
+
+uint8_t tt_get_inherited_priority (volatile TT_THREAD * thread_info) { 
+	volatile TT_THREAD * p = tt_first_thread; 
+	volatile TT_THREAD * q; 
+	volatile TT_MUTEX * m; 
+	TICK_COUNT now = tt_get_tick_count (); 
+	do { 
+		if (p->ready_at > now) continue; 
+		q = p; 
+		m = 0; 
+		while (q->waiting_for) { 
+			if (q == thread_info) return p->priority; 
+			m = q->waiting_for; 
+			if (m->taken_by) 
+				q = m->taken_by; 
+			else break; 
+		} 
+	} while (p = p->next_thread); 
+	return thread_info->priority; 
+} 
+
 void tt_wake_thread (volatile TT_THREAD * thread_info) {
 	thread_info->ready_at = 0; // Ready immediately.
 	// If the thread we're waking up is of higher priority than us,
